@@ -340,6 +340,7 @@ class LogSourceSysmon(LogSource):
     _TAG_SYSTEM_NET = 4
     _TAG_PROCESS_STAT = 5
     _TAG_THREAD_STAT = 6
+    _TAG_RESERVED = 7
 
     def __init__(self, parent, options, desc, filepath):
         LogSource.__init__(self, parent, options, desc, filepath)
@@ -387,6 +388,8 @@ class LogSourceSysmon(LogSource):
             pid = data.read_u32()
             tid = data.read_u32()
             self.sysmon.add_thread_stat(pid, tid, *read_data())
+        elif tag == LogSourceSysmon._TAG_RESERVED:
+            read_data()
         else:
             raise LogError("Unknown sysmon tag: %d" % tag)
 

@@ -54,7 +54,7 @@ ULOG_DECLARE_TAG(ULOG_TAG);
 #define ACQ_PERIOD_MS	1000
 
 /* To be changed whenever the layout of data of source is changed */
-#define VERSION		1
+#define VERSION		2
 
 enum {
 	TAG_SYSTEM_CONFIG = 0,
@@ -64,6 +64,7 @@ enum {
 	TAG_SYSTEM_NET = 4,
 	TAG_PROCESS_STAT = 5,
 	TAG_THREAD_STAT = 6,
+	TAG_RESERVED = 7,
 };
 
 static const std::string PLUGIN_NAME = "sysmon";
@@ -92,8 +93,14 @@ public:
 				if (errno != ESRCH && errno != ENOENT)
 					ULOG_ERRNO("open('%s')", -res, path);
 			}
+			mPath = path;
 		}
 		return res;
+	}
+
+	inline bool isOpen() const
+	{
+		return mFd >= 0;
 	}
 
 	inline void close()
@@ -106,12 +113,15 @@ public:
 
 	inline bool read()
 	{
+		int ret;
 		ssize_t readlen = 0;
 
-		mPending = true;
 		mDataLen = 0;
-		if (mFd < 0)
-			return false;
+		if (mFd < 0) {
+			ret = open(mPath.c_str());
+			if (ret < 0)
+				return false;
+		}
 
 		/* Read at offset 0, computing acquisition times,
 		 * keep room for final null character */
@@ -165,8 +175,9 @@ private:
 	bool		mPending;
 	struct timespec	mTsAcqBegin;
 	struct timespec	mTsAcqEnd;
-	char		mData[4096];
+	char		mData[32768];
 	size_t		mDataLen;
+	std::string	mPath;
 };
 
 class Thread {
@@ -335,10 +346,12 @@ class System
 public:
 	inline System()
 	{
-		mStat.open("/proc/stat");
-		mMem.open("/proc/meminfo");
-		mDisk.open("/proc/diskstats");
-		mNet.open("/proc/net/dev");
+		mBitField = 0xfffffffff;
+
+		mFileByTag[TAG_SYSTEM_STAT].open("/proc/stat");
+		mFileByTag[TAG_SYSTEM_MEM].open("/proc/meminfo");
+		mFileByTag[TAG_SYSTEM_DISK].open("/proc/diskstats");
+		mFileByTag[TAG_SYSTEM_NET].open("/proc/net/dev");
 	}
 
 	inline ~System()
@@ -347,30 +360,29 @@ public:
 
 	inline void read()
 	{
-		mStat.read();
-		mMem.read();
-		mDisk.read();
-		mNet.read();
+		for (auto it = mFileByTag.begin(); it != mFileByTag.end(); ++it) {
+			if (mBitField & (1 << it->first))
+				it->second.read();
+		}
 	}
 
 	inline bool dump(loggerd::LogData &data)
 	{
-		if (!mStat.dump(data, TAG_SYSTEM_STAT, nullptr, 0))
-			return false;
-		if (!mMem.dump(data, TAG_SYSTEM_MEM, nullptr, 0))
-			return false;
-		if (!mDisk.dump(data, TAG_SYSTEM_DISK, nullptr, 0))
-			return false;
-		if (!mNet.dump(data, TAG_SYSTEM_NET, nullptr, 0))
-			return false;
+		for (auto it = mFileByTag.begin(); it != mFileByTag.end(); ++it) {
+			if (mBitField & (1 << it->first)) {
+				if (!it->second.dump(data, it->first, nullptr, 0))
+					return false;
+			}
+		}
 		return true;
 	}
 
+	inline void setSystemConfig(uint64_t bitField)
+	{ mBitField = bitField; }
+
 private:
-	DataFile	mStat;
-	DataFile	mMem;
-	DataFile	mDisk;
-	DataFile	mNet;
+	uint64_t 		    mBitField;
+	std::map<uint8_t, DataFile> mFileByTag;
 };
 
 static bool getProcessName(int pid, char *name, size_t nameSize)
@@ -457,6 +469,9 @@ public:
 
 	inline void setConfig(const Config &config)
 	{ mConfig = config; }
+
+	inline void setSystemConfig(uint64_t bitField)
+	{ mSystem.setSystemConfig(bitField); }
 
 	inline void setSystemConfigDumped(bool systemConfigDumped)
 	{ mSystemConfigDumped = systemConfigDumped; }
@@ -575,6 +590,9 @@ public:
 	inline void setConfig(const Monitor::Config &config)
 	{ mMonitor.setConfig(config); }
 
+	inline void setSystemConfig(uint64_t bitField)
+	{ mMonitor.setSystemConfig(bitField); }
+
 private:
 	inline static void timerCb(struct pomp_timer *timer, void *userdata)
 	{
@@ -599,6 +617,9 @@ public:
 public:
 	virtual const std::string &getName() const override;
 	virtual void setSettings(const std::string &val) override;
+
+private:
+	void parseConfig(const std::string &key, const std::string &value);
 
 private:
 	SysMonLogSource	*mLogSource;
@@ -657,29 +678,61 @@ const std::string &SysMonPlugin::getName() const
 	return PLUGIN_NAME;
 }
 
+void SysMonPlugin::parseConfig(const std::string &key, const std::string &value)
+{
+	uint64_t bitField;
+	Monitor::Config config;
+	size_t start = 0, end = 0;
+
+	if (key == "monitor") {
+		do {
+			end = value.find('|', start);
+			std::string sItem = (end != std::string::npos ?
+					value.substr(start, end - start) :
+					value.substr(start));
+
+			if (sItem == "#NOTHREADS")
+				config.monitorThreads = false;
+			else if (sItem.length() > 1 && sItem[0] == '!')
+				config.excludedNames.insert(sItem.substr(1));
+			else if (!sItem.empty() && sItem[0] != '!')
+				config.includedNames.insert(sItem);
+
+			start = end + 1;
+		} while (end != std::string::npos);
+
+		mLogSource->setConfig(config);
+	} else if (key == "module") {
+		bitField = std::stol(value, nullptr, 0);
+		mLogSource->setSystemConfig(bitField);
+	} else {
+		ULOGE("Unknown key %s", key.c_str());
+	}
+}
+
 void SysMonPlugin::setSettings(const std::string &val)
 {
 	size_t start = 0, end = 0;
-	Monitor::Config config;
 
-	/* Search <name> separated by '|' */
+	/* Parse monitor and module settings. */
 	do {
-		end = val.find('|', start);
+		end = val.find(';', start);
 		std::string item = (end != std::string::npos ?
 				val.substr(start, end - start) :
 				val.substr(start));
 
-		if (item == "#NOTHREADS")
-			config.monitorThreads = false;
-		else if (item.length() > 1 && item[0] == '!')
-			config.excludedNames.insert(item.substr(1));
-		else if (!item.empty() && item[0] != '!')
-			config.includedNames.insert(item);
+		size_t pos = item.find('=');
+		if (pos != std::string::npos) {
+			std::string item_key = item.substr(0, pos);
+			std::string item_val = (end != std::string::npos ?
+					item.substr(pos + 1, end - pos + 1) :
+					item.substr(pos + 1));
+
+			parseConfig(item_key, item_val);
+		}
 
 		start = end + 1;
 	} while (end != std::string::npos);
-
-	mLogSource->setConfig(config);
 }
 
 extern "C" void loggerd_plugin_init(loggerd::LogManager *manager,
