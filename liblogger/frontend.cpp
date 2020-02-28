@@ -417,7 +417,6 @@ void LogFrontend::writeHeader()
 		"ro.parrot.build.version",
 		"ro.revision",
 		"ro.mech.revision",
-		"ro.serialno",
 		"ro.factory.hcam_serial",
 		"ro.factory.serial",
 		"ro.factory.product.pro",
