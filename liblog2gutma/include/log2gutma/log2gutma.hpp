@@ -35,6 +35,7 @@ enum convert_status {
 	STATUS_ERROR = -1,
 	STATUS_OK = 0,
 	STATUS_NOFLIGHT = 1,
+	STATUS_UNSUPPORTED_VERSION = 2,
 };
 
 /**

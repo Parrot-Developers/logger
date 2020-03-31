@@ -73,12 +73,22 @@ out:
 std::string HdrWrapper::sampleDateTime(int64_t ts) const
 {
 	int nb;
+	bool ret;
 	int32_t off;
 	char tmp[32];
 	char date[26];
 	int64_t abs_ts, tmp_ts;
 	uint64_t epoch, epoch_tmp;
 	std::string sdate;
+
+	ret = (mHdr.find("reftime.absolute") != mHdr.end());
+	if (!ret) {
+		abs_ts = 0;
+		epoch = 0;
+		off = 0;
+
+		goto compute;
+	}
 
 	timeMonotonicParse(&epoch, &off);
 	nb = sscanf(mHdr.at("reftime.absolute").c_str(), "%" PRId64, &abs_ts);
@@ -87,6 +97,7 @@ std::string HdrWrapper::sampleDateTime(int64_t ts) const
 		goto out;
 	}
 
+compute:
 	tmp_ts = ts - abs_ts;
 	epoch_tmp = epoch + (tmp_ts / 1000000);
 	tmp_ts = (tmp_ts - ((epoch_tmp - epoch) * 1000000)) / 1000;
@@ -101,16 +112,27 @@ out:
 std::string HdrWrapper::startDateTime() const
 {
 	int nb;
+	bool ret;
 	int32_t off;
 	char date[26];
 	int64_t abs_ts;
 	uint64_t epoch, epoch_tmp;
+
+	ret = (mHdr.find("reftime.absolute") != mHdr.end());
+	if (!ret) {
+		abs_ts = 0;
+		epoch = 0;
+		off = 0;
+
+		goto compute;
+	}
 
 	timeMonotonicParse(&epoch, &off);
 	nb = sscanf(mHdr.at("reftime.absolute").c_str(), "%" PRId64, &abs_ts);
 	if (nb != 1)
 		abs_ts = 0;
 
+compute:
 	epoch_tmp = epoch - (abs_ts / 1000000);
 	time_local_format(epoch_tmp, off, TIME_FMT_LONG, date, sizeof(date));
 

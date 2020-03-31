@@ -48,6 +48,8 @@
 
 #define FLIGHT_LOGGING_VERSION "1.0.0"
 
+#define DRONE_VERSION_PROPERTY "ro.parrot.build.version"
+
 #define USER_TELEMETRY_GPSWGS84_ALTITUDE "user_telemetry.gps_wgs84_altitude"
 #define USER_TELEMETRY_GPS_LATITUDE "user_telemetry.gps_latitude"
 #define USER_TELEMETRY_GPS_LONGITUDE "user_telemetry.gps_longitude"
