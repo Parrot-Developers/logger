@@ -615,6 +615,7 @@ class LogSourceUlog(LogSource):
             LogSource.__init__(self, parent, options, desc, None)
             self.mainbin_dir = os.path.dirname(filepath)
             self.mainbin = {}
+            self.mainbin_ts = {}
         else:
             LogSource.__init__(self, parent, options, desc, filepath)
             self._ctx._sources.append(filepath)
@@ -629,7 +630,17 @@ class LogSourceUlog(LogSource):
                         filename = entry.tag + ".bin"
                         filepath = os.path.join(self.mainbin_dir, filename)
                         self.mainbin[entry.tag] = open(filepath, "wb")
+                        # With timestamp
+                        filename = entry.tag + "-ts.bin"
+                        filepath = os.path.join(self.mainbin_dir, filename)
+                        self.mainbin_ts[entry.tag] = open(filepath, "wb")
+
                     self.mainbin[entry.tag].write(entry.msg)
+
+                    # Timestamp, message length and message
+                    self.mainbin_ts[entry.tag].write(struct.pack(
+                            "<QI", entry.ts, len(entry.msg)))
+                    self.mainbin_ts[entry.tag].write(entry.msg)
                 else:
                     self._ctx._mainbin_txt.append(entry)
         else:
