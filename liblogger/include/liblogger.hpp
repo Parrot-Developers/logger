@@ -97,7 +97,7 @@ public:
 		/*
 		 * If value is the empty string, key can be update only once per header creation.
 		 * Else the value associated to key stays the same during the entire library
-		 * instanciation. Size is used to reserve storage to store value.
+		 * instantiation. Size is used to reserve storage to store value.
 		 */
 		inline ExtraProperty(const std::string &_key, size_t _size,
 						const std::string &_value = "")
@@ -123,10 +123,17 @@ public:
 		size_t minLogSize;
 		LogIdxManager *logIdxManager;
 		std::vector<ExtraProperty> extraProps;
+
+		inline Options()
+			: encrypted(false), maxLogCount(0), minFreeSpace(0),
+			maxUsedSpace(0), maxLogSize(0), minLogSize(0),
+			logIdxManager(nullptr)
+		{
+		}
 	};
 
 	virtual int loadPlugins(const std::string &pluginDir) = 0;
-        virtual int loadPlugins(const std::vector<Plugin *> &plugins) = 0;
+	virtual int loadPlugins(const std::vector<Plugin *> &plugins) = 0;
 	virtual void unloadPlugins() = 0;
 	virtual void destroyLogSources() = 0;
 	virtual void destroyDirectWriters() = 0;
