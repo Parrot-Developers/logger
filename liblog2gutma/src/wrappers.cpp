@@ -109,7 +109,7 @@ out:
 	return date;
 }
 
-std::string HdrWrapper::startDateTime() const
+std::string HdrWrapper::startDateTime(int64_t startTs) const
 {
 	int nb;
 	bool ret;
@@ -133,7 +133,7 @@ std::string HdrWrapper::startDateTime() const
 		abs_ts = 0;
 
 compute:
-	epoch_tmp = epoch - (abs_ts / 1000000);
+	epoch_tmp = epoch - (abs_ts / 1000000) + (startTs / 1000000);
 	time_local_format(epoch_tmp, off, TIME_FMT_LONG, date, sizeof(date));
 
 	return date;
@@ -279,7 +279,8 @@ EvtWrapper::EventTypeMap::const_iterator EvtWrapper::begin() const
 	return mEvents.begin();
 }
 
-bool EvtWrapper::at(EventTypeMap::const_iterator it, int64_t &ts, EventType **evt) const
+bool EvtWrapper::at(EventTypeMap::const_iterator it, int64_t startTs,
+		int64_t &ts, EventType **evt) const
 {
 	bool ret = true;
 
@@ -288,7 +289,7 @@ bool EvtWrapper::at(EventTypeMap::const_iterator it, int64_t &ts, EventType **ev
 		goto out;
 	}
 
-	ts = it->first;
+	ts = it->first - startTs;
 	*evt = it->second;
 
 out:
@@ -591,7 +592,7 @@ bool TlmWrapper::at(TlmByTimestamp::const_iterator it,
 	}
 
 	data.resize(sampleSize, 0);
-	data[0] = (double) it->first;
+	data[0] = (double) (it->first - mData.begin()->first);
 	for (uint i = 0; i < mDescs.size(); i++) {
 		idx = sortfnc(mDescs[i].getName());
 		if (idx < 0)

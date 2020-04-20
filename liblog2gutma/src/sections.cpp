@@ -172,6 +172,7 @@ json_object *LoggingSection::data()
 
 	int idx;
 	int64_t ts;
+	int64_t startTs;
 	char ds[128] = "";
 	std::string eventStr;
 	std::vector<double> value;
@@ -252,8 +253,9 @@ json_object *LoggingSection::data()
 
 	jevents = json_object_new_array();
 	/* Last, add events data. */
+	startTs = mTlm.begin() != mTlm.end() ? mTlm.begin()->first : 0;
 	for (auto it = mEvt.begin(); it != mEvt.end(); it++) {
-		if (!mEvt.at(it, ts, &evt))
+		if (!mEvt.at(it, startTs, ts, &evt))
 			break;
 
 		if (evt->isEvent()) {
@@ -270,7 +272,7 @@ json_object *LoggingSection::data()
 	jtmp = json_object_new_object();
 	jval = json_object_new_string("WGS84");
 	json_object_object_add(jtmp, "altitude_system", jval);
-	jval = json_object_new_string(mHdr.startDateTime().c_str());
+	jval = json_object_new_string(mHdr.startDateTime(startTs).c_str());
 	json_object_object_add(jtmp, "logging_start_dtg", jval);
 	json_object_object_add(jtmp, "events", jevents);
 	json_object_object_add(jtmp, "flight_logging_keys", jkeys);

@@ -106,9 +106,16 @@ enum convert_status convert(const std::string &in_file,
 
 only_flight:
 	if (onlyFlight && hdr) {
-		auto it = hdr->getFields().find("takeoff");
-		if (it != hdr->getFields().end() && it->second == "0") {
-			ULOGI("No takeoff during this session.");
+		auto it = hdr->getFields().find("control.flight.uuid");
+		if (it == hdr->getFields().end()) {
+			it = hdr->getFields().find("takeoff");
+			if (it != hdr->getFields().end() && it->second == "0") {
+				ULOGI("No takeoff during this session");
+				ret = STATUS_NOFLIGHT;
+				goto out;
+			}
+		} else if (it->second == "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF") {
+			ULOGI("No takeoff during this log");
 			ret = STATUS_NOFLIGHT;
 			goto out;
 		}

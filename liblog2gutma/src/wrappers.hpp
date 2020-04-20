@@ -40,7 +40,7 @@ public:
 public:
 	void print() const;
 	std::string sampleDateTime(int64_t ts) const;
-	std::string startDateTime() const;
+	std::string startDateTime(int64_t startTs) const;
 
 	HeaderMap::const_iterator end() const;
 	HeaderMap::const_iterator begin() const;
@@ -140,7 +140,7 @@ public:
 
 	EventTypeMap::const_iterator end() const;
 	EventTypeMap::const_iterator begin() const;
-	bool at(EventTypeMap::const_iterator it,
+	bool at(EventTypeMap::const_iterator it, int64_t startTs,
 				int64_t &ts, EventType **evt) const;
 
 private:
