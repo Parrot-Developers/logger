@@ -174,6 +174,7 @@ public:
 	virtual void rotate() = 0;
 	virtual void enableMd5() = 0;
 	virtual void setEnabled(bool enabled) = 0;
+	virtual void pollSources(bool force) = 0;
 };
 
 class SettingsManager {

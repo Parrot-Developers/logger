@@ -97,6 +97,7 @@ public:
 	virtual void rotate() override;
 	virtual void enableMd5() override;
 	virtual void setEnabled(bool enabled) override;
+	virtual void pollSources(bool force) override;
 
 private:
 	typedef std::vector<Source *>		SourceVector;
@@ -109,7 +110,6 @@ private:
 	static void pompIdleCb(void *userdata);
 
 	void updatePeriod();
-	void pollSources(bool force);
 	bool pushSourceDescription(Source *source);
 	void pushSourceData(Source *source);
 	void checkPendingRemove();
