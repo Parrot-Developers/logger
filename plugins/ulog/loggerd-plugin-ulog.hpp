@@ -55,6 +55,8 @@ protected:
 	/* Return true if entry shall be kept, false to skip it */
 	inline virtual bool filterEntry(const struct ulog_entry *entry)
 	{ return true; }
+	bool filterGcsName(const struct ulog_entry *entry);
+	bool filterGcsType(const struct ulog_entry *entry);
 	bool filterTime(const struct ulog_entry *entry);
 
 private:

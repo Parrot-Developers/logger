@@ -114,6 +114,10 @@ size_t UlogSource::readData(loggerd::LogData &data)
 		if (filterTime(&entry)) {
 			mManager->updateRefTime(entry.message, entry.tv_sec,
 						entry.tv_nsec);
+		} else if (filterGcsName(&entry)) {
+			mManager->updateGcsName(entry.message);
+		} else if (filterGcsType(&entry)) {
+			mManager->updateGcsType(entry.message);
 		}
 
 		/*
@@ -132,6 +136,18 @@ size_t UlogSource::readData(loggerd::LogData &data)
 uint32_t UlogSource::getPeriodMs()
 {
 	return 1000;
+}
+
+bool UlogSource::filterGcsName(const struct ulog_entry *entry)
+{
+	const char pattern[] = "EVTS:CONTROLLER;name=";
+	return (strncmp(entry->message, pattern, sizeof(pattern) - 1) == 0);
+}
+
+bool UlogSource::filterGcsType(const struct ulog_entry *entry)
+{
+	const char pattern[] = "EVT:CONTROLLER;event='connected'";
+	return (strncmp(entry->message, pattern, sizeof(pattern) - 1) == 0);
 }
 
 bool UlogSource::filterTime(const struct ulog_entry *entry)

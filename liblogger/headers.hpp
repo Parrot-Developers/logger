@@ -77,6 +77,7 @@
 
 #define DEFAULT_MSG "EVT:TIME;date='1970-01-01';time='T000000+0200'"
 #define TIME_ZERO "00000000000000000000"
+#define GCS_DEFAULT_SIZE 128
 
 #include "buffer.hpp"
 #include "plugin.hpp"

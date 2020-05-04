@@ -63,12 +63,16 @@ LogFrontend::LogFrontend(const loggerd::Loggerd::Options &opt,
 	mFlightIdOff = 0;
 	mTakeoffOff = 0;
 	mDateOff = 0;
+	mGcsNameOff = 0;
+	mGcsTypeOff = 0;
 	mMd5Off = 0;
 	mMonotonicOff = 0;
 	mAbsoluteOff = 0;
 	mFlightIdSize = 0;
 	mTakeoffSize = 0;
 	mAbsoluteSize = 0;
+	mGcsNameSize = 0;
+	mGcsTypeSize = 0;
 	mMonotonicSize = 0;
 	mDateSize = 0;
 	mMd5Size = 0;
@@ -80,6 +84,8 @@ LogFrontend::LogFrontend(const loggerd::Loggerd::Options &opt,
 	mIndex = 0;
 	mUsedSpace = 0;
 	memset(&mCtx, 0, sizeof(mCtx));
+	memset(&mGcsName, 0, sizeof(mGcsName));
+	memset(&mGcsType, 0, sizeof(mGcsType));
 }
 
 LogFrontend::~LogFrontend()
@@ -185,7 +191,7 @@ bool LogFrontend::isOpened()
 }
 
 bool LogFrontend::writehdrField(off_t *off, size_t *s, const char *key,
-				const char *value, LogData &logData, size_t prev)
+	const char *value, LogData &logData, size_t prev, int len)
 {
 	bool ok = true;
 
@@ -193,7 +199,7 @@ bool LogFrontend::writehdrField(off_t *off, size_t *s, const char *key,
 
 	if (s && off)
 		*off = logData.used();
-	ok = ok && logData.pushString(value);
+	ok = ok && logData.pushString(value, len);
 	if (s && off) {
 		*s = logData.used() - *off;
 		*off += mBackend->size() + prev;
@@ -203,19 +209,25 @@ bool LogFrontend::writehdrField(off_t *off, size_t *s, const char *key,
 }
 
 void LogFrontend::updateField(off_t *off, size_t *s, const char *data,
-			   const char *desc)
+			   const char *desc, int size)
 {
+	size_t len;
+
 	if (*off == 0 || *s == 0)
 		return;
 
-	size_t len = sizeof(uint16_t) + strlen(data);
+	if (size != -1)
+		len = sizeof(uint16_t) + size;
+	else
+		len = sizeof(uint16_t) + strlen(data);
+
 	uint8_t *buf = (uint8_t *) malloc(len + 1);
 	if (buf == NULL)
 		return;
 
 	LogData logData(buf, len + 1);
 
-	if (!logData.pushString(data)) {
+	if (!logData.pushString(data, size)) {
 		ULOGW("Failed to rewrite %s", desc);
 	} else if (logData.used() != *s) {
 		ULOGW("Failed to rewrite %s, size mismatch: %zu(%zu)",
@@ -255,6 +267,31 @@ void LogFrontend::updateDate()
 void LogFrontend::updateFlightId(const char *flight_id)
 {
 	updateField(&mFlightIdOff, &mFlightIdSize, flight_id, "flight_id");
+}
+
+void LogFrontend::updateGcsName(const char *message)
+{
+	snprintf(mGcsName, sizeof(mGcsName), "%s", message);
+	updateGcsField(&mGcsNameOff, &mGcsNameSize, "gcs_name", message);
+}
+
+void LogFrontend::updateGcsType(const char *message)
+{
+	snprintf(mGcsType, sizeof(mGcsType), "%s", message);
+	updateGcsField(&mGcsTypeOff, &mGcsTypeSize, "gcs_type", message);
+}
+
+void LogFrontend::updateGcsField(off_t *off, size_t *s, const char *desc,
+							const char *message)
+{
+	size_t size = strlen(message);
+	char copy[GCS_DEFAULT_SIZE + 1];
+
+	memset(copy, 0, sizeof(copy));
+	size = size > GCS_DEFAULT_SIZE ? GCS_DEFAULT_SIZE : size;
+	snprintf(copy, size + 1, "%s", message);
+
+	updateField(off, s, copy, desc, sizeof(copy) - 1);
 }
 
 void LogFrontend::updateRefTime(const char *message, time_t tv_sec,
@@ -479,6 +516,11 @@ void LogFrontend::writeHeader()
 	getDate(date, sizeof(date));
 	ok = ok && writehdrField(&mDateOff, &mDateSize, "date", date, logData,
 				 prev);
+
+	ok = ok && writehdrField(&mGcsNameOff, &mGcsNameSize, "gcs.name",
+			mGcsName, logData, prev, sizeof(mGcsName) - 1);
+	ok = ok && writehdrField(&mGcsTypeOff, &mGcsTypeSize, "gcs.type",
+			mGcsType, logData, prev, sizeof(mGcsType) - 1);
 
 	/* Write default md5 and remember where we store it so we can
 	 * rewrite it when computation is ended*/

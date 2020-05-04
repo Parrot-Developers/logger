@@ -88,6 +88,8 @@ public:
 			uint32_t version) override;
 	virtual void flush(const char *reason) override;
 	virtual void updateDate() override;
+	virtual void updateGcsName(const char *message) override;
+	virtual void updateGcsType(const char *message) override;
 	virtual void updateExtraProperty(const std::string &key,
 					const std::string &value) override;
 	virtual void updateFlightId(const char *flight_id) override;
@@ -567,6 +569,16 @@ void LoggerdImpl::updateDate()
 void LoggerdImpl::updateFlightId(const char *flight_id)
 {
 	mFrontEnd->updateFlightId(flight_id);
+}
+
+void LoggerdImpl::updateGcsName(const char *message)
+{
+	mFrontEnd->updateGcsName(message);
+}
+
+void LoggerdImpl::updateGcsType(const char *message)
+{
+	mFrontEnd->updateGcsType(message);
 }
 
 void LoggerdImpl::updateRefTime(const char *message, time_t tv_sec, long tv_nsec)

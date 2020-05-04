@@ -91,6 +91,10 @@ public:
 	void updateExtraProperty(const std::string &key, const std::string &value);
 	void updateFlightId(const char *flight_id);
 
+	/* Rewrite gcs information in log header */
+	void updateGcsName(const char *message);
+	void updateGcsType(const char *message);
+
 	/* Rewrite reference time and associated time stamp in header */
 	void updateRefTime(const char *message, time_t tv_sec, long tv_nsec);
 	void updateTakeoff(bool takeoff);
@@ -107,9 +111,13 @@ public:
 	void writev(const struct iovec *iov, int iovcnt, bool quiet, bool isHeader = false);
 
 private:
-	void updateField(off_t *off, size_t *s, const char *data, const char *desc);
+	void updateGcsField(off_t *off, size_t *s, const char *desc,
+							const char *message);
+	void updateField(off_t *off, size_t *s, const char *data,
+			const char *desc, int size = -1);
 	bool writehdrField(off_t *off, size_t *s, const char *key,
-			   const char *value, LogData &logData, size_t prev);
+			const char *value, LogData &logData,
+			size_t prev, int len = -1);
 	void writeHeader();
 	void writeFooter(CloseReason reason);
 	/* Calculate free space left, and update mRemoveSize if it's less than
@@ -132,6 +140,8 @@ private:
 	MD5_CTX 	mCtx;
 	Loggerd::Options mOpt;
 	char		mMd5[(MD5_DIGEST_LENGTH * 2) + 1];
+	char		mGcsName[GCS_DEFAULT_SIZE + 1];
+	char		mGcsType[GCS_DEFAULT_SIZE + 1];
 	size_t		mUsedSpace;
 	LogBackend	*mBackend;
 	BaseSource	*mHeaderSource;
@@ -142,12 +152,16 @@ private:
 	off_t		mMd5Off;
 	off_t		mMonotonicOff;
 	off_t		mAbsoluteOff;
+	off_t		mGcsNameOff;
+	off_t		mGcsTypeOff;
 	size_t		mFlightIdSize;
 	size_t		mTakeoffSize;
 	size_t		mAbsoluteSize;
 	size_t		mMonotonicSize;
 	size_t		mDateSize;
 	size_t		mMd5Size;
+	size_t		mGcsNameSize;
+	size_t		mGcsTypeSize;
 	bool		mMd5Enabled;
 	bool		mClosing;
 	bool		mCheckSpace;

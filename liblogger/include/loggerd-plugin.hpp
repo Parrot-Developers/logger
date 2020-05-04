@@ -165,6 +165,8 @@ public:
 						 uint32_t version) = 0;
 	virtual void flush(const char *reason) = 0;
 	virtual void updateDate() = 0;
+	virtual void updateGcsName(const char *message) = 0;
+	virtual void updateGcsType(const char *message) = 0;
 	virtual void updateExtraProperty(const std::string &key,
 						const std::string &value) = 0;
 	virtual void updateFlightId(const char *flight_id) = 0;
