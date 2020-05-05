@@ -354,9 +354,9 @@ json_object *HWSection::data()
 	json_object_array_add(jpayload, jbattery);
 
 	jgcs = json_object_new_object();
-	jtmp = json_object_new_string(mEvt.getGcsType().c_str());
+	jtmp = json_object_new_string(mHdr.getGcsType().c_str());
 	json_object_object_add(jgcs, "type", jtmp);
-	jtmp = json_object_new_string(mEvt.getGcsName().c_str());
+	jtmp = json_object_new_string(mHdr.getGcsName().c_str());
 	json_object_object_add(jgcs, "name", jtmp);
 
 	jtmp = json_object_new_object();

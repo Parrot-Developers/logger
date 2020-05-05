@@ -30,6 +30,8 @@ namespace log2gutma_wrapper {
 
 HdrWrapper::HdrWrapper(InternalDataSource *hdr) : mHdr(hdr->getFields())
 {
+	mGcsName = parseGcsField("gcs.name", "name");
+	mGcsType = parseGcsField("gcs.type", "type");
 }
 
 void HdrWrapper::print() const
@@ -139,6 +141,42 @@ compute:
 	return date;
 }
 
+std::string HdrWrapper::parseGcsField(const std::string &fieldName,
+					const std::string &parameterName) const
+{
+	bool ret;
+	std::string gcsField;
+	logextract::EventDataSource::Event event;
+
+	using Event = logextract::EventDataSource::Event;
+
+	ret = (mHdr.find(fieldName) != mHdr.end());
+	if (!ret)
+		goto out;
+
+	ret = Event::fromString(mHdr.at(fieldName), event, -1);
+	if (!ret)
+		goto out;
+
+	for (auto parameter : event.getParameters()) {
+		if (parameter.name == parameterName)
+			gcsField = parameter.value;
+	}
+
+out:
+	return gcsField;
+}
+
+const std::string HdrWrapper::getGcsName() const
+{
+	return mGcsName;
+}
+
+const std::string HdrWrapper::getGcsType() const
+{
+	return mGcsType;
+}
+
 HdrWrapper::HeaderMap::const_iterator HdrWrapper::end() const
 {
 	return mHdr.end();
@@ -184,12 +222,9 @@ std::string HdrWrapper::getValue(const std::string &key) const
 
 EvtWrapper::EvtWrapper(std::vector<EventDataSource *> &events)
 {
-	mGcsConnect = false;
-
 	enum event_kind {
 		EVENT_KIND_AUTOPILOT,
 		EVENT_KIND_ALERT,
-		EVENT_KIND_CONNECTION,
 		EVENT_KIND_MEDIA,
 		EVENT_KIND_NOT_PROCESSED,
 	};
@@ -197,7 +232,6 @@ EvtWrapper::EvtWrapper(std::vector<EventDataSource *> &events)
 	const std::map<std::string, enum event_kind> kindAction {
 		{ "AUTOPILOT",	  EVENT_KIND_AUTOPILOT  },
 		{ "COLIBRY",      EVENT_KIND_ALERT      },
-		{ "CONTROLLER",   EVENT_KIND_CONNECTION },
 		{ "ESC",          EVENT_KIND_ALERT      },
 		{ "GIMBAL",       EVENT_KIND_ALERT      },
 		{ "PHOTO",	  EVENT_KIND_MEDIA      },
@@ -223,10 +257,6 @@ EvtWrapper::EvtWrapper(std::vector<EventDataSource *> &events)
 				break;
 			case EVENT_KIND_ALERT :
 				processAlert(evt, name);
-				break;
-			case EVENT_KIND_CONNECTION :
-				if (!mGcsConnect)
-					parseGcsConnectionEvt(evt);
 				break;
 			case EVENT_KIND_MEDIA :
 				processMedia(evt, name);
@@ -283,16 +313,6 @@ void EvtWrapper::print() const
 		std::cout << it->first << " " << it->second->getEventString();
 		std::cout << std::endl;
 	}
-}
-
-const std::string &EvtWrapper::getGcsType() const
-{
-	return mGcsType;
-}
-
-const std::string &EvtWrapper::getGcsName() const
-{
-	return mGcsName;
 }
 
 EvtWrapper::EventTypeMap::const_iterator EvtWrapper::end() const
@@ -561,25 +581,6 @@ void EvtWrapper::processMedia(const Event &event, std::string info)
 		} else if (info == "PHOTO") {
 			mEvents[timestamp] = new EventTypeMedia(
 				EventType::EventTypeEnum::EVENT_PHOTO, mediaName);
-		}
-	}
-}
-
-void EvtWrapper::parseGcsConnectionEvt(const Event &event)
-{
-	for (auto parameter : event.getParameters()) {
-		if (parameter.name == "event") {
-			if (parameter.value == "connected") {
-				mGcsConnect = true;
-				continue;
-			}
-		}
-
-		if (mGcsConnect) {
-			if (parameter.name == "type")
-				mGcsType = parameter.value;
-			else if (parameter.name == "name")
-				mGcsName = parameter.value;
 		}
 	}
 }

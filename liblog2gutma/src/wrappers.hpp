@@ -38,6 +38,8 @@ public:
 	HdrWrapper(InternalDataSource *hdr);
 
 public:
+	const std::string getGcsName() const;
+	const std::string getGcsType() const;
 	void print() const;
 	std::string sampleDateTime(int64_t ts) const;
 	std::string startDateTime(int64_t startTs) const;
@@ -51,9 +53,13 @@ public:
 
 private:
 	bool timeMonotonicParse(uint64_t *epoch, int32_t *offset) const;
+	std::string parseGcsField(const std::string &fieldName,
+			const std::string &parameterName) const;
 
 private:
 	const HeaderMap mHdr;
+	std::string mGcsName;
+	std::string mGcsType;
 };
 
 class EvtWrapper {
@@ -169,8 +175,6 @@ public:
 
 public:
 	void print() const;
-	const std::string &getGcsType() const;
-	const std::string &getGcsName() const;
 
 	EventTypeMap::const_iterator end() const;
 	EventTypeMap::const_iterator begin() const;
@@ -195,9 +199,6 @@ private:
 	static const int EXTERNAL_STORAGE_ID = 1;
 
 private:
-	bool mGcsConnect;
-	std::string mGcsType;
-	std::string mGcsName;
 	EventTypeMap mEvents;
 };
 
