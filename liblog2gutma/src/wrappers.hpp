@@ -71,6 +71,21 @@ public:
 			EVENT_ENROUTE,
 			EVENT_VIDEO,
 			EVENT_PHOTO,
+			EVENT_VCAM_ERROR,
+			EVENT_BATTERY_LOW,
+			EVENT_CUT_OUT,
+			EVENT_MOTOR_BROKEN,
+			EVENT_MOTOR_TEMP,
+			EVENT_CAM_ERROR,
+			EVENT_CAM_CALIB,
+			EVENT_BATTERY_LOW_TEMP,
+			EVENT_BATTERY_HIGH_TEMP,
+			EVENT_STORAGE_INT_FULL,
+			EVENT_STORAGE_INT_ALMOST_FULL,
+			EVENT_STORAGE_EXT_FULL,
+			EVENT_STORAGE_EXT_ALMOST_FULL,
+			EVENT_PROPELLER_UNSCREWED,
+			EVENT_PROPELLER_BROKEN,
 
 			EVENT_UNKNOWN,
 			EVENT_NOT_PROCESSED,
@@ -82,6 +97,7 @@ public:
 		EventType(EventTypeEnum event_type) : mEventType(event_type) {}
 
 	public:
+		virtual bool isAlert() const = 0;
 		virtual bool isEvent() const = 0;
 		virtual bool isMedia() const = 0;
 		virtual json_object *data(int64_t ts) = 0;
@@ -96,6 +112,22 @@ public:
 	};
 	typedef std::map<int64_t, EventType *> EventTypeMap;
 
+	class EventTypeAlert : public EventType {
+	public:
+		inline ~EventTypeAlert() {}
+		inline EventTypeAlert() : EventType() {}
+		inline EventTypeAlert(EventTypeEnum event_type) :
+					EventType(event_type) {}
+
+	public:
+		virtual json_object *data(int64_t ts) override;
+		virtual inline bool isAlert() const override { return true; }
+		virtual inline bool isEvent() const override { return false; }
+		virtual inline bool isMedia() const override { return false; }
+		virtual inline std::string getControllerType() const override
+						{ return "CONTROLLER_ALERT"; }
+	};
+
 	class EventTypeMedia : public EventType {
 	public:
 		inline ~EventTypeMedia() {}
@@ -105,6 +137,7 @@ public:
 
 	public:
 		virtual json_object *data(int64_t ts) override;
+		virtual inline bool isAlert() const override { return false; }
 		virtual inline bool isEvent() const override { return false; }
 		virtual inline bool isMedia() const override { return true; }
 		virtual inline std::string getControllerType() const override
@@ -123,6 +156,7 @@ public:
 
 	public:
 		virtual json_object *data(int64_t ts) override;
+		virtual inline bool isAlert() const override { return false; }
 		virtual inline bool isEvent() const override { return true; }
 		virtual inline bool isMedia() const override { return false; }
 		virtual inline std::string getControllerType() const override
@@ -144,9 +178,21 @@ public:
 				int64_t &ts, EventType **evt) const;
 
 private:
+	void processAlert(const Event &event, std::string info);
+	void processSimpleAlert(const Event &event,
+				const std::string &paramName,
+				const std::string &paramValue,
+				EventType::EventTypeEnum alertType);
+	void processPropellerAlert(const Event &event);
+	void processStorageAlert(const Event &event);
+	void processVisionAlert(const Event &event);
 	void processEvent(const Event &event);
 	void parseGcsConnectionEvt(const Event &event);
 	void processMedia(const Event &event, std::string info);
+
+private:
+	static const int INTERNAL_STORAGE_ID = 0;
+	static const int EXTERNAL_STORAGE_ID = 1;
 
 private:
 	bool mGcsConnect;

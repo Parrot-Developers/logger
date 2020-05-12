@@ -188,16 +188,23 @@ EvtWrapper::EvtWrapper(std::vector<EventDataSource *> &events)
 
 	enum event_kind {
 		EVENT_KIND_AUTOPILOT,
+		EVENT_KIND_ALERT,
 		EVENT_KIND_CONNECTION,
 		EVENT_KIND_MEDIA,
 		EVENT_KIND_NOT_PROCESSED,
 	};
 
 	const std::map<std::string, enum event_kind> kindAction {
-		{ "AUTOPILOT",	EVENT_KIND_AUTOPILOT  },
-		{ "CONTROLLER", EVENT_KIND_CONNECTION },
-		{ "PHOTO",	EVENT_KIND_MEDIA      },
-		{ "RECORD",	EVENT_KIND_MEDIA      },
+		{ "AUTOPILOT",	  EVENT_KIND_AUTOPILOT  },
+		{ "COLIBRY",      EVENT_KIND_ALERT      },
+		{ "CONTROLLER",   EVENT_KIND_CONNECTION },
+		{ "ESC",          EVENT_KIND_ALERT      },
+		{ "GIMBAL",       EVENT_KIND_ALERT      },
+		{ "PHOTO",	  EVENT_KIND_MEDIA      },
+		{ "RECORD",	  EVENT_KIND_MEDIA      },
+		{ "SMARTBATTERY", EVENT_KIND_ALERT      },
+		{ "STORAGE",      EVENT_KIND_ALERT      },
+		{ "VISION",       EVENT_KIND_ALERT      },
 	};
 
 	for (auto event : events) {
@@ -211,7 +218,11 @@ EvtWrapper::EvtWrapper(std::vector<EventDataSource *> &events)
 						EVENT_KIND_NOT_PROCESSED);
 			switch (kind) {
 			case EVENT_KIND_AUTOPILOT :
+				processAlert(evt, name);
 				processEvent(evt);
+				break;
+			case EVENT_KIND_ALERT :
+				processAlert(evt, name);
 				break;
 			case EVENT_KIND_CONNECTION :
 				if (!mGcsConnect)
@@ -237,14 +248,29 @@ EvtWrapper::~EvtWrapper()
 std::string EvtWrapper::EventType::getEventString() const
 {
 	const std::map<EventTypeEnum, std::string> eventString {
-		{ EventTypeEnum::EVENT_EMERGENCY, "EME"    },
-		{ EventTypeEnum::EVENT_LANDED,    "LND"    },
-		{ EventTypeEnum::EVENT_LANDING,   "LDG"    },
-		{ EventTypeEnum::EVENT_TAKEOFF,   "TOF"    },
-		{ EventTypeEnum::EVENT_UNKNOWN,   "UNK"    },
-		{ EventTypeEnum::EVENT_ENROUTE,   "ENR"    },
-		{ EventTypeEnum::EVENT_PHOTO,     "PHOTO"  },
-		{ EventTypeEnum::EVENT_VIDEO,     "VIDEO"  },
+		{ EventTypeEnum::EVENT_EMERGENCY,               "EME"                         },
+		{ EventTypeEnum::EVENT_LANDED,                  "LND"                         },
+		{ EventTypeEnum::EVENT_LANDING,                 "LDG"                         },
+		{ EventTypeEnum::EVENT_TAKEOFF,                 "TOF"                         },
+		{ EventTypeEnum::EVENT_UNKNOWN,                 "UNK"                         },
+		{ EventTypeEnum::EVENT_ENROUTE,                 "ENR"                         },
+		{ EventTypeEnum::EVENT_PHOTO,                   "PHOTO"                       },
+		{ EventTypeEnum::EVENT_VIDEO,                   "VIDEO"                       },
+		{ EventTypeEnum::EVENT_VCAM_ERROR,              "VERTICAL CAMERA ERROR"       },
+		{ EventTypeEnum::EVENT_CAM_ERROR,               "GIMBAL ERROR"                },
+		{ EventTypeEnum::EVENT_BATTERY_LOW,             "BATTERY LOW"                 },
+		{ EventTypeEnum::EVENT_CUT_OUT,                 "CUT OUT MOTOR"               },
+		{ EventTypeEnum::EVENT_MOTOR_BROKEN,            "MOTOR BROKEN"                },
+		{ EventTypeEnum::EVENT_MOTOR_TEMP,              "MOTOR TEMPERATURE"           },
+		{ EventTypeEnum::EVENT_BATTERY_LOW_TEMP,        "BATTERY LOW TEMPERATURE"     },
+		{ EventTypeEnum::EVENT_BATTERY_HIGH_TEMP,       "BATTERY HIGH TEMPERATURE"    },
+		{ EventTypeEnum::EVENT_STORAGE_INT_FULL,        "INTERNAL MEMORY FULL"        },
+		{ EventTypeEnum::EVENT_STORAGE_INT_ALMOST_FULL, "INTERNAL MEMORY ALMOST FULL" },
+		{ EventTypeEnum::EVENT_STORAGE_EXT_FULL,        "SDCARD FULL"                 },
+		{ EventTypeEnum::EVENT_STORAGE_EXT_ALMOST_FULL, "SDCARD ALMOST FULL"          },
+		{ EventTypeEnum::EVENT_CAM_CALIB,               "CALIBRATION REQUIRED"        },
+		{ EventTypeEnum::EVENT_PROPELLER_UNSCREWED,     "PROPELLER UNSCREWED"         },
+		{ EventTypeEnum::EVENT_PROPELLER_BROKEN,        "PROPELLER BROKEN"            },
 	};
 
 	auto   it  = eventString.find(mEventType);
@@ -294,6 +320,184 @@ bool EvtWrapper::at(EventTypeMap::const_iterator it, int64_t startTs,
 
 out:
 	return ret;
+}
+
+void EvtWrapper::processAlert(const Event &event, std::string info)
+{
+	using EventTypeEnum = EventType::EventTypeEnum;
+
+	enum event_source {
+		EVENT_SOURCE_AUTOPILOT,
+		EVENT_SOURCE_COLIBRY,
+		EVENT_SOURCE_ESC,
+		EVENT_SOURCE_GIMBAL,
+		EVENT_SOURCE_SMARTBATTERY,
+		EVENT_SOURCE_STORAGE,
+		EVENT_SOURCE_VISION,
+		EVENT_SOURCE_NOT_PROCESSED,
+	};
+
+	const std::map<std::string, enum event_source> sourceAction {
+		{ "AUTOPILOT",	  EVENT_SOURCE_AUTOPILOT    },
+		{ "COLIBRY",      EVENT_SOURCE_COLIBRY      },
+		{ "ESC",          EVENT_SOURCE_ESC          },
+		{ "GIMBAL",       EVENT_SOURCE_GIMBAL       },
+		{ "SMARTBATTERY", EVENT_SOURCE_SMARTBATTERY },
+		{ "STORAGE",      EVENT_SOURCE_STORAGE      },
+		{ "VISION",       EVENT_SOURCE_VISION       },
+	};
+
+	enum event_source source;
+	auto it = sourceAction.find(info);
+
+	source = (it != sourceAction.end() ?
+			it->second : EVENT_SOURCE_NOT_PROCESSED);
+
+	switch (source) {
+	case EVENT_SOURCE_AUTOPILOT :
+		processSimpleAlert(event, "alert", "CUT_OUT",
+				EventTypeEnum::EVENT_CUT_OUT);
+		processSimpleAlert(event, "alert", "BATTERY_LOW",
+				EventTypeEnum::EVENT_BATTERY_LOW);
+		processPropellerAlert(event);
+		break;
+	case EVENT_SOURCE_COLIBRY :
+		processSimpleAlert(event, "event", "defective_motor",
+				EventTypeEnum::EVENT_MOTOR_BROKEN);
+		break;
+	case EVENT_SOURCE_ESC :
+		processSimpleAlert(event, "error_m", "temperature",
+				EventTypeEnum::EVENT_MOTOR_TEMP);
+		break;
+	case EVENT_SOURCE_GIMBAL :
+		processSimpleAlert(event, "alert", "critical",
+				EventTypeEnum::EVENT_CAM_ERROR);
+		processSimpleAlert(event, "alert", "calibration",
+				EventTypeEnum::EVENT_CAM_CALIB);
+		break;
+	case EVENT_SOURCE_SMARTBATTERY :
+		processSimpleAlert(event, "temperature_alert", "low critical",
+				EventTypeEnum::EVENT_BATTERY_LOW_TEMP);
+		processSimpleAlert(event, "temperature_alert", "high critical",
+					EventTypeEnum::EVENT_BATTERY_HIGH_TEMP);
+		break;
+	case EVENT_SOURCE_STORAGE :
+		processStorageAlert(event);
+		break;
+	case EVENT_SOURCE_VISION :
+		processVisionAlert(event);
+		break;
+	default:
+		break;
+	}
+}
+
+void EvtWrapper::processSimpleAlert(const Event &event,
+				    const std::string &paramName,
+				    const std::string &paramValue,
+				    EventType::EventTypeEnum alertType)
+{
+	using EventTypeEnum = EventType::EventTypeEnum;
+
+	size_t pos;
+	int64_t timestamp = event.getTimestamp();
+	EventTypeEnum tmpType = EventTypeEnum::EVENT_NOT_PROCESSED;
+
+	for (auto parameter : event.getParameters()) {
+		pos = parameter.name.find(paramName);
+		if (pos != std::string::npos) {
+			pos = parameter.value.find(paramValue);
+			if (pos != std::string::npos)
+				tmpType = alertType;
+		}
+	}
+
+	if (tmpType != EventTypeEnum::EVENT_NOT_PROCESSED)
+		mEvents[timestamp] = new EventTypeAlert(tmpType);
+}
+
+void EvtWrapper::processPropellerAlert(const Event &event)
+{
+	using EventTypeEnum = EventType::EventTypeEnum;
+
+	int64_t timestamp = event.getTimestamp();
+	EventTypeEnum tmpType = EventTypeEnum::EVENT_NOT_PROCESSED;
+	EventTypeEnum criticalType = EventTypeEnum::EVENT_PROPELLER_BROKEN;
+	EventTypeEnum warningType = EventTypeEnum::EVENT_PROPELLER_UNSCREWED;
+
+	for (auto parameter : event.getParameters()) {
+		if (parameter.name == "vibration_level") {
+			if (parameter.value == "WARNING")
+				tmpType = warningType;
+			else if (parameter.value == "CRITICAL")
+				tmpType = criticalType;
+		}
+	}
+
+	if (tmpType != EventTypeEnum::EVENT_NOT_PROCESSED)
+		mEvents[timestamp] = new EventTypeAlert(tmpType);
+}
+
+void EvtWrapper::processStorageAlert(const Event &event)
+{
+	using EventTypeEnum = EventType::EventTypeEnum;
+
+	int ret;
+	int id = -1;
+	bool full = false;
+	bool almostFull = false;
+	int64_t timestamp = event.getTimestamp();
+	EventTypeEnum tmpType = EventTypeEnum::EVENT_NOT_PROCESSED;
+
+	for (auto parameter : event.getParameters()) {
+		if (parameter.name == "storage_id") {
+			ret = sscanf(parameter.value.c_str(), "%d", &id);
+			if (ret != 1)
+				break;
+		} else if (parameter.name == "event") {
+			if (parameter.value == "full")
+				full = true;
+			else if (parameter.value == "almost_full")
+				almostFull = true;
+		}
+	}
+
+	if (id == INTERNAL_STORAGE_ID && full)
+		tmpType = EventTypeEnum::EVENT_STORAGE_INT_FULL;
+	else if (id == INTERNAL_STORAGE_ID && almostFull)
+		tmpType = EventTypeEnum::EVENT_STORAGE_INT_ALMOST_FULL;
+	else if (id == EXTERNAL_STORAGE_ID && full)
+		tmpType = EventTypeEnum::EVENT_STORAGE_EXT_FULL;
+	else if (id == EXTERNAL_STORAGE_ID && almostFull)
+		tmpType = EventTypeEnum::EVENT_STORAGE_EXT_ALMOST_FULL;
+
+	if (tmpType != EventTypeEnum::EVENT_NOT_PROCESSED)
+		mEvents[timestamp] = new EventTypeAlert(tmpType);
+}
+
+void EvtWrapper::processVisionAlert(const Event &event)
+{
+	using EventTypeEnum = EventType::EventTypeEnum;
+
+	bool defective = false;
+	bool opticalFlow = false;
+	int64_t timestamp = event.getTimestamp();
+	EventTypeEnum tmpType = EventTypeEnum::EVENT_NOT_PROCESSED;
+
+	for (auto parameter : event.getParameters()) {
+		if (parameter.name == "feature") {
+			if (parameter.value == "optical_flow")
+				opticalFlow = true;
+		} else if (parameter.name == "event") {
+			if (parameter.value == "defective")
+				defective = true;
+		}
+	}
+
+	if (defective && opticalFlow) {
+		tmpType = EventTypeEnum::EVENT_VCAM_ERROR;
+		mEvents[timestamp] = new EventTypeAlert(tmpType);
+	}
 }
 
 void EvtWrapper::processEvent(const Event &event)
@@ -396,6 +600,11 @@ json_object *EvtWrapper::EventType::baseData(int64_t ts)
 	json_object_object_add(jevent, "event_timestamp", jtmp);
 
 	return jevent;
+}
+
+json_object *EvtWrapper::EventTypeAlert::data(int64_t ts)
+{
+	return baseData(ts);
 }
 
 json_object *EvtWrapper::EventTypeEvent::data(int64_t ts)
