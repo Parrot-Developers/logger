@@ -42,6 +42,9 @@ static void usage(const std::string &prog)
 	std::cerr << "  -o --output-dir output directory." << std::endl;
 	std::cerr << "                    (default: /mnt/user)" << std::endl;
 	std::cerr << "  -i --input-file IN_FILE: input file." << std::endl;
+	std::cerr << "  -F --flight-only: only accept log files with flight." <<
+								std::endl;
+	std::cerr << "             (default: false)" << std::endl;
 }
 
 int main(int argc, char **argv)
@@ -51,14 +54,16 @@ int main(int argc, char **argv)
 	int status = EXIT_FAILURE;
 	std::string in_file = "", out_file = "";
 	enum log2gutma::convert_status ret = log2gutma::STATUS_ERROR;
+	bool onlyFlight = false;
 
 	const struct option long_options[] = {
 		{"help",	no_argument,	   NULL, 'h' },
 		{"output-dir",	required_argument, NULL, 'o' },
 		{"input-file",	required_argument, NULL, 'i' },
+		{"only-flight", no_argument,       NULL, 'F' },
 		{NULL,		0,                 NULL,  0  }
 	};
-	const char short_options[] = "ho:i:";
+	const char short_options[] = "ho:i:F";
 
 	while ((c = getopt_long(argc, argv, short_options,
 			long_options, &optidx)) != -1) {
@@ -72,6 +77,9 @@ int main(int argc, char **argv)
 			break;
 		case 'o':
 			out_file = optarg;
+			break;
+		case 'F':
+			onlyFlight = true;
 			break;
 		case '?':
 			std::cerr << "Invalid option in command line";
@@ -94,7 +102,7 @@ int main(int argc, char **argv)
 		goto out;
 	}
 
-	ret = log2gutma::convert(in_file, out_file, false);
+	ret = log2gutma::convert(in_file, out_file, onlyFlight);
 	if (ret == log2gutma::STATUS_ERROR) {
 		std::cerr << "Impossible to convert log file." << std::endl;
 		goto out;
