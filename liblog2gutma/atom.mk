@@ -26,7 +26,6 @@ LOCAL_LIBRARIES := \
 	json \
 	libfutils \
 	liblogextract \
-	libpuf \
 	libulog
 
 LOCAL_EXPORT_C_INCLUDES := \

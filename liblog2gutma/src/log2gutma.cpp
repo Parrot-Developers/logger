@@ -24,9 +24,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <libpuf.h>
-
 #include "headers.hpp"
+
 
 namespace log2gutma {
 
@@ -34,8 +33,6 @@ enum convert_status convert(const std::string &in_file,
 				const std::string &out_file, bool onlyFlight)
 {
 	size_t pos;
-	int res = 0;
-	std::string version;
 	std::string fileName;
 	char *_out_file = nullptr;
 	json_object *obj = nullptr;
@@ -45,7 +42,6 @@ enum convert_status convert(const std::string &in_file,
 	logextract::InternalDataSource *hdr = nullptr;
 	std::vector<logextract::EventDataSource *> evts;
 	std::vector<log2gutma_wrapper::TlmWrapper> tlms;
-	struct puf_version threshold_version, current_version;
 
 	using Exchange = log2gutma_message::Exchange;
 	using EvtWrapper = log2gutma_wrapper::EvtWrapper;
@@ -72,39 +68,6 @@ enum convert_status convert(const std::string &in_file,
 		}
 	}
 
-	if (hdr) {
-		if (!hdr->containsField(DRONE_VERSION_PROPERTY)) {
-			ULOGW("Drone version not found in header.");
-			ret = STATUS_ERROR;
-			goto out;
-		}
-
-		version = hdr->getValue(DRONE_VERSION_PROPERTY);
-		res = puf_version_fromstring(version.c_str(), &current_version);
-		if (res < 0) {
-			ULOGW("Failed to parse current version: %s", version.c_str());
-			ret = STATUS_ERROR;
-			goto out;
-		}
-
-		if (current_version.type == PUF_VERSION_TYPE_DEV)
-			goto only_flight;
-
-		res = puf_version_fromstring("1.6.0", &threshold_version);
-		if (res < 0) {
-			ULOGW("Failed to parse threshold version.");
-			ret = STATUS_ERROR;
-			goto out;
-		}
-		res = puf_compare_version(&threshold_version, &current_version);
-		if (res > 0) {
-			ULOGW("Unsupported version for gutma export: %s", version.c_str());
-			ret = STATUS_UNSUPPORTED_VERSION;
-			goto out;
-		}
-	}
-
-only_flight:
 	if (onlyFlight && hdr) {
 		auto it = hdr->getFields().find("control.flight.uuid");
 		if (it == hdr->getFields().end()) {

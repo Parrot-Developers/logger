@@ -109,9 +109,6 @@ int main(int argc, char **argv)
 	} else if (ret == log2gutma::STATUS_NOFLIGHT) {
 		std::cout << "No need to convert this log file: no takeoff";
 		std::cout << std::endl;
-	} else if (ret == log2gutma::STATUS_UNSUPPORTED_VERSION) {
-		std::cout << "file not converted because of unsupported version";
-		std::cout << std::endl;
 	}
 
 	status = EXIT_SUCCESS;
