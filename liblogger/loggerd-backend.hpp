@@ -62,7 +62,7 @@ public:
 	virtual void close() = 0;
 	virtual bool isOpened() = 0;
 	virtual void sync() = 0;
-	virtual off_t size() = 0;
+	virtual size_t size() = 0;
 	virtual void write(const void *buf, size_t len, bool quiet) = 0;
 	virtual void writev(const struct iovec *iov, int iovcnt, bool quiet) = 0;
 	virtual void pwrite(const void *buf, size_t len, off_t offset) = 0;

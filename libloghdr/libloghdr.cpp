@@ -59,7 +59,7 @@ static int loghdr_readHelper(int fd, void *buf, size_t count)
 			res = -errno;
 		else
 			res = -EIO;
-		ULOG_ERRNO("Unable to read %lu bytes", -res, count);
+		ULOG_ERRNO("Unable to read %zu bytes", -res, count);
 	}
 
 	return res;

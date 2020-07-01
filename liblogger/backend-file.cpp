@@ -49,7 +49,7 @@ public:
 	virtual void close();
 	virtual bool isOpened();
 	virtual void sync();
-	virtual off_t size();
+	virtual size_t size();
 	virtual void write(const void *buf, size_t len, bool quiet);
 	virtual void writev(const struct iovec *iov, int iovcnt, bool quiet);
 	virtual void pwrite(const void *buf, size_t len, off_t offset);
@@ -274,12 +274,15 @@ void BackendFile::sync()
 	}
 }
 
-off_t BackendFile::size()
+size_t BackendFile::size()
 {
+	off_t ret;
+
 	if (mFd < 0)
 		return 0;
-	else
-		return lseek(mFd, 0, SEEK_CUR);
+
+	ret = lseek(mFd, 0, SEEK_CUR);
+	return (ret < 0) ? 0 : ret;
 }
 
 

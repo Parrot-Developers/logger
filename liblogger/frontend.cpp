@@ -157,7 +157,7 @@ void LogFrontend::close(CloseReason reason)
 	mCloseReason = reason;
 	writeFooter(reason);
 	ULOGI("closing log, reason: %s (%zu bytes written)",
-			closeReasonStr(reason), (size_t)mBackend->size());
+			closeReasonStr(reason), mBackend->size());
 
 	/* Finalize md5 computation */
 	if (mMd5Enabled)
@@ -222,7 +222,8 @@ void LogFrontend::updateField(off_t *off, size_t *s, const char *data,
 		      desc, logData.used(), *s);
 	} else {
 		/* Clear offset/size after write so we don't update it again */
-		ULOGI("Update %s @%zu:%zu -> %s", desc, *off, *s, data);
+		ULOGI("Update %s @%jd:%zu -> %s", desc, (intmax_t) *off, *s,
+			data);
 		mBackend->pwrite(buf, logData.used(), *off);
 		*off = 0;
 		*s = 0;
@@ -271,7 +272,7 @@ void LogFrontend::updateRefTime(const char *message, time_t tv_sec,
 	ts.tv_sec = tv_sec;
 	ts.tv_nsec = tv_nsec;
 	time_timespec_to_us(&ts, &us);
-	snprintf(absolute, sizeof(absolute), "%020lu", us);
+	snprintf(absolute, sizeof(absolute), "%020" PRIu64, us);
 	mAbsolute = absolute;
 
 	updateField(&mMonotonicOff, &mMonotonicSize, mMonotonic.c_str(),
