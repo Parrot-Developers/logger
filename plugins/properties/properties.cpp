@@ -39,7 +39,9 @@
 #include <vector>
 
 #include <loggerd-plugin.hpp>
+#ifdef BUILD_LIBAUTOPILOT
 #include <libautopilot.h>
+#endif
 #include <libpomp.h>
 #include <putils/properties.h>
 #include <putils/propmon.h>
@@ -68,6 +70,7 @@ public:
 		return PLUGIN_NAME;
 	}
 
+#ifdef BUILD_LIBAUTOPILOT
 	inline void flyingStateChanged(const char *val)
 	{
 		bool is_landed;
@@ -81,6 +84,7 @@ public:
 
 		mIsLanded = is_landed;
 	}
+#endif
 
 	virtual void setSettings(const std::string &val) override;
 
@@ -89,7 +93,9 @@ public:
 	typedef std::map<std::string, ValueVector>	FlushMap;
 	FlushMap					mFlushProperties;
 	loggerd::LogManager				*mManager;
+#ifdef BUILD_LIBAUTOPILOT
 	bool						mIsLanded;
+#endif
 };
 
 class PropLogSource : public loggerd::LogSource {
@@ -268,20 +274,24 @@ void PropLogSource::onPropertyChanged(const struct property_change *pch)
 	 * timezone */
 	if (strcmp(pch->key, "persist.last.conn.date.utc_off") == 0)
 		mPlugin->mManager->updateDate();
+#ifdef BUILD_LIBAUTOPILOT
 	else if (strcmp(pch->key, AUTOPILOT_FLYING_STATE_PROP) == 0)
 		mPlugin->flyingStateChanged(pch->value);
+#endif
 
 	mEntries.push_back(Entry(&ts, pch));
 }
 
 PropPlugin::PropPlugin(loggerd::LogManager *manager, struct pomp_loop *loop)
 {
+#ifdef BUILD_LIBAUTOPILOT
 	enum autopilot_flying_state flying_state;
 
 	flying_state = autopilot_get_flying_state();
+	mIsLanded = autopilot_is_landed(flying_state);
+#endif
 
 	mManager = manager;
-	mIsLanded = autopilot_is_landed(flying_state);
 }
 
 PropPlugin::~PropPlugin()

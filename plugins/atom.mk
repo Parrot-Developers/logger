@@ -52,7 +52,8 @@ LOCAL_CATEGORY_PATH := liblogger-plugins
 LOCAL_DESTDIR := usr/lib/loggerd-plugins
 LOCAL_CXXFLAGS := -std=c++11
 LOCAL_SRC_FILES := properties/properties.cpp
-LOCAL_LIBRARIES := libautopilot liblogger-headers libfutils libputils libulog libpomp
+LOCAL_LIBRARIES := liblogger-headers libfutils libputils libulog libpomp
+LOCAL_CONDITIONAL_LIBRARIES := OPTIONAL:libautopilot
 include $(BUILD_SHARED_LIBRARY)
 
 # loggerd plugin: file
