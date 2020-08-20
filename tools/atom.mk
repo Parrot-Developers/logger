@@ -37,5 +37,7 @@ LOCAL_COPY_FILES := \
 	gutma/flight_events.py:$(LOGGER_TOOLS_PYTHON_OUT_DIR)/gutma/ \
 	gutma/flight_logging_geojson.py:$(LOGGER_TOOLS_PYTHON_OUT_DIR)/gutma/ \
 	gutma/flight_logging.py:$(LOGGER_TOOLS_PYTHON_OUT_DIR)/gutma/ \
-	gutma/ulog_reader.py:$(LOGGER_TOOLS_PYTHON_OUT_DIR)/gutma/
+	gutma/ulog_reader.py:$(LOGGER_TOOLS_PYTHON_OUT_DIR)/gutma/ \
+	gutma/fdrlite_extract.py:$(LOGGER_TOOLS_PYTHON_OUT_DIR)/gutma/ \
+	gutma/fdrlite_reader.py:$(LOGGER_TOOLS_PYTHON_OUT_DIR)/gutma/
 include $(BUILD_CUSTOM)
