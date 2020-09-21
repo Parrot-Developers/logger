@@ -85,7 +85,7 @@ void GeojsonSection::process()
 	point.resize(2);
 	mLoggingStart = "";
 	for (auto it = mTlm.begin(); it != mTlm.end(); it++) {
-		if (!mTlm.at(it, value, 6, sortField))
+		if (!mTlm.at(it, value,  mTlm.begin()->first, 6, sortField))
 			break;
 
 		point[0] = value[1];
@@ -172,16 +172,23 @@ json_object *LoggingSection::data()
 
 	int idx;
 	int64_t ts;
-	int64_t startTs;
+	int64_t startTs, tlm_startTs, evt_startTs;
 	char ds[128] = "";
 	std::string eventStr;
 	std::vector<double> value;
 	EvtWrapper::EventType *evt;
 
+	tlm_startTs = mTlm.begin() != mTlm.end() ? mTlm.begin()->first : INT64_MAX;
+	evt_startTs = mEvt.begin() != mEvt.end() ? mEvt.begin()->first : INT64_MAX;
+	if (evt_startTs > tlm_startTs)
+		startTs = tlm_startTs;
+	else
+		startTs = evt_startTs;
+
 	jitems = json_object_new_array();
 	/* Add telemetry data. */
 	for (auto it = mTlm.begin(); it != mTlm.end(); it++) {
-		if (!mTlm.at(it, value, tlmVarOrder.size() + 1, sortField))
+		if (!mTlm.at(it, value, startTs, tlmVarOrder.size() + 1, sortField))
 			break;
 
 		jtmp = json_object_new_array();
@@ -253,7 +260,6 @@ json_object *LoggingSection::data()
 
 	jevents = json_object_new_array();
 	/* Last, add events data. */
-	startTs = mTlm.begin() != mTlm.end() ? mTlm.begin()->first : 0;
 	for (auto it = mEvt.begin(); it != mEvt.end(); it++) {
 		if (!mEvt.at(it, startTs, ts, &evt))
 			break;

@@ -790,7 +790,7 @@ TlmWrapper::TlmByTimestamp::const_iterator TlmWrapper::begin() const
 }
 
 bool TlmWrapper::at(TlmByTimestamp::const_iterator it,
-	std::vector<double> &data, uint sampleSize, SortFnc sortfnc) const
+	std::vector<double> &data, int64_t startTs, uint sampleSize, SortFnc sortfnc) const
 {
 	int idx;
 	uint count = 1;
@@ -802,7 +802,7 @@ bool TlmWrapper::at(TlmByTimestamp::const_iterator it,
 	}
 
 	data.resize(sampleSize, 0);
-	data[0] = (double) (it->first - mData.begin()->first);
+	data[0] = (double) (it->first - startTs);
 	for (uint i = 0; i < mDescs.size(); i++) {
 		idx = sortfnc(mDescs[i].getName());
 		if (idx < 0)

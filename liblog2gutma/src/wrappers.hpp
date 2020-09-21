@@ -223,6 +223,7 @@ public:
 	TlmByTimestamp::const_iterator end() const;
 	TlmByTimestamp::const_iterator begin() const;
 	bool at(TlmByTimestamp::const_iterator it, std::vector<double> &data,
+					int64_t startTs,
 					uint sampleSize, SortFnc sortfnc) const;
 
 private:
