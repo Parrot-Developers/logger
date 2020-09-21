@@ -596,7 +596,7 @@ json_object *EvtWrapper::EventType::baseData(int64_t ts)
 	json_object_object_add(jevent, "event_type", jtmp);
 	jtmp = json_object_new_string(getEventString().c_str());
 	json_object_object_add(jevent, "event_info", jtmp);
-	snprintf(ds, sizeof(ds), "%.3g", ((double) ts) / 1000000.0);
+	snprintf(ds, sizeof(ds), "%.3f", ((float) ts) / 1000000.0f);
 	jtmp = json_object_new_string(ds);
 	json_object_object_add(jevent, "event_timestamp", jtmp);
 

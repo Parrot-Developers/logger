@@ -323,7 +323,7 @@ json_object *HWSection::data()
 				if (ret != 1)
 					capacity = 0.0f;
 				capacity /= 1000.0f;
-				snprintf(capacity_str, sizeof(capacity_str), "%.3g", capacity);
+				snprintf(capacity_str, sizeof(capacity_str), "%.3f", capacity);
 				value = capacity_str;
 			}
 			jtmp = json_object_new_string(value.c_str());
