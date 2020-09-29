@@ -460,6 +460,7 @@ void LogFrontend::writeHeader()
 		"ro.factory.product.pro",
 		"ro.boot.uuid",
 		"ro.smartbattery.gfw_version",
+		"ro.smartbattery.g_date",
 		"ro.smartbattery.usb_model",
 		"ro.smartbattery.usb_version",
 		"ro.smartbattery.version",
