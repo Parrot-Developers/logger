@@ -276,6 +276,8 @@ json_object *LoggingSection::data()
 
 	/* Finally construct json_object. */
 	jtmp = json_object_new_object();
+	jval = json_object_new_string("Metric");
+	json_object_object_add(jtmp, "uom_system", jval);
 	jval = json_object_new_string("WGS84");
 	json_object_object_add(jtmp, "altitude_system", jval);
 	jval = json_object_new_string(mHdr.startDateTime(startTs).c_str());
