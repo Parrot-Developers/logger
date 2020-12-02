@@ -110,7 +110,8 @@ public:
 public:
 	inline json_object *data()
 	{
-		assert(mGeometry != nullptr);
+		if (!mGeometry)
+			return nullptr;
 
 		json_object *jproperties;
 		json_object *jgeometry;
@@ -186,7 +187,9 @@ class Point: public Geometry {
 public:
 	inline Point(const std::vector<double> &coordinates)
 	{
-		assert(coordinates.size() <= 3);
+		if (coordinates.size() > 3)
+			return;
+
 		for (double coordinate : coordinates)
 			mCoordinates.push_back(coordinate);
 		mType = "Point";

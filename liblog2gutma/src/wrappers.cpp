@@ -666,7 +666,8 @@ void TlmWrapper::process()
 	const TelemetryDataSource::DataSet *data;
 	uint sampleCount = mSource->getSampleCount();
 
-	assert(mDescs.empty());
+	if (!mDescs.empty())
+		return;
 
 	for (auto desc : mSource->getDataSetDescs()) {
 		if (!isNeeded(desc))
@@ -677,7 +678,7 @@ void TlmWrapper::process()
 		mDescs.push_back(desc);
 
 		for (uint i = 0; i < sampleCount; i++) {
-			for(uint j = 0; j < itemCount; j++) {
+			for (uint j = 0; j < itemCount; j++) {
 				s = data->getSample(i, j);
 				mData[s.timestamp].push_back(s.value);
 			}
@@ -692,7 +693,9 @@ void TlmWrapper::merge(std::vector<TlmWrapper> &tlm)
 	uint sampleCount;
 	std::vector<TlmByTimestamp::const_iterator> timestamps;
 
-	assert(tlm.size() > 0);
+	if (tlm.empty())
+		return;
+
 	timestamps.resize(2 * tlm.size());
 
 	sampleCount = 0;
