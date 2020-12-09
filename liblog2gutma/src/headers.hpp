@@ -50,13 +50,25 @@
 #define USER_TELEMETRY_GPSWGS84_ALTITUDE "user_telemetry.gps_wgs84_altitude"
 #define USER_TELEMETRY_GPS_LATITUDE "user_telemetry.gps_latitude"
 #define USER_TELEMETRY_GPS_LONGITUDE "user_telemetry.gps_longitude"
+#define USER_TELEMETRY_GPS_AVAILABLE "gps_available"
+#define USER_TELEMETRY_GPS_LATITUDE_ACCURACY "user_telemetry.gps_latitude_accuracy"
+#define USER_TELEMETRY_GPS_LONGITUDE_ACCURACY "user_telemetry.gps_longitude_accuracy"
+#define USER_TELEMETRY_ANGLES_PHI "user_telemetry.angles_phi"
+#define USER_TELEMETRY_ANGLES_THETA "user_telemetry.angles_theta"
+#define USER_TELEMETRY_ANGLES_PSI "user_telemetry.angles_psi"
 
 #define SPEED_HORIZ_X "navdata.speed_horiz_x_m_s"
 #define SPEED_HORIZ_Y "navdata.speed_horiz_y_m_s"
+#define SPEED_HORIZ_Z "navdata.speed_horiz_z_m_s"
 
 #define SMARTBATTERY_CURRENT_NOW "smartbattery.current_now"
 #define SMARTBATTERY_FULL_CHARGE_CAP "smartbattery.full_charge_cap"
 #define SMARTBATTERY_REMAINING_CAP "smartbattery.remaining_cap"
 #define SMARTBATTERY_VOLTAGE_NOW "smartbattery.voltage_now"
+#define SMARTBATTERY_CELL_VOLTAGE_NOW "smartbattery.cell_voltage"
 
+#define WIFI_SIGNAL_0 "wifid.rssi_0"
+#define WIFI_SIGNAL_1 "wifid.rssi_1"
+
+#define GNSS_SV_NUM "gnss.sv"
 #endif

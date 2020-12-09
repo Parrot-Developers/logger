@@ -67,6 +67,7 @@ public:
 	typedef int (*SortFnc)(const std::string &);
 	typedef logextract::EventDataSource EventDataSource;
 	typedef EventDataSource::Event Event;
+
 	class EventType {
 	public:
 		enum class EventTypeEnum {
@@ -92,9 +93,22 @@ public:
 			EVENT_STORAGE_EXT_ALMOST_FULL,
 			EVENT_PROPELLER_UNSCREWED,
 			EVENT_PROPELLER_BROKEN,
+			EVENT_GPS_FIXED,
+			EVENT_GPS_UNFIXED,
+			EVENT_CONTROLLER_CONNECTION,
+			EVENT_CONTROLLER_DISCONNECTION,
 
 			EVENT_UNKNOWN,
 			EVENT_NOT_PROCESSED,
+		};
+		enum class EventKindEnum {
+			EVENT_KIND_AUTOPILOT,
+			EVENT_KIND_ALERT,
+			EVENT_KIND_MEDIA,
+			EVENT_KIND_FSUP,
+			EVENT_KIND_GPS,
+			EVENT_KIND_CONTROLLER,
+			EVENT_KIND_NOT_PROCESSED,
 		};
 
 	public:
@@ -139,7 +153,9 @@ public:
 		inline ~EventTypeMedia() {}
 		inline EventTypeMedia() : EventType(), mPath() {}
 		inline EventTypeMedia(EventTypeEnum event_type, std::string path) :
-					EventType(event_type), mPath(path) {}
+			EventType(event_type), mPath(path), mEvent("") {}
+		inline EventTypeMedia(EventTypeEnum event_type, std::string path, std::string event) :
+			EventType(event_type), mPath(path), mEvent(event) {}
 
 	public:
 		virtual json_object *data(int64_t ts) override;
@@ -151,6 +167,27 @@ public:
 
 	private:
 		std::string mPath;
+		std::string mEvent;
+	};
+
+	class EventTypeController : public EventType {
+	public:
+		inline ~EventTypeController() {}
+		inline EventTypeController() : EventType(), mName(), mType() {}
+		inline EventTypeController(EventTypeEnum event_type, std::string name, std::string type) :
+					EventType(event_type), mName(name), mType(type) {}
+
+	public:
+		virtual json_object *data(int64_t ts) override;
+		virtual inline bool isAlert() const override { return false; }
+		virtual inline bool isEvent() const override { return false; }
+		virtual inline bool isMedia() const override { return true; }
+		virtual inline std::string getControllerType() const override
+						{ return "CONTROLLER_GCS"; }
+
+	private:
+		std::string mName;
+		std::string mType;
 	};
 
 	class EventTypeEvent : public EventType {
@@ -183,6 +220,7 @@ public:
 
 private:
 	void processAlert(const Event &event, std::string info);
+	void processFlyingState(const Event &event);
 	void processSimpleAlert(const Event &event,
 				const std::string &paramName,
 				const std::string &paramValue,
@@ -190,9 +228,12 @@ private:
 	void processPropellerAlert(const Event &event);
 	void processStorageAlert(const Event &event);
 	void processVisionAlert(const Event &event);
-	void processEvent(const Event &event);
+	void processEvent(const Event &event,
+		const EvtWrapper::EventTypeEvent::EventKindEnum event_kind);
 	void parseGcsConnectionEvt(const Event &event);
 	void processMedia(const Event &event, std::string info);
+	void processGPSEvent(const Event &event);
+	void processControllerEvent(const Event &event);
 
 private:
 	static const int INTERNAL_STORAGE_ID = 0;
@@ -200,12 +241,13 @@ private:
 
 private:
 	EventTypeMap mEvents;
+        EventType::EventTypeEnum mCurrentFlyingEvent;
 };
 
 class TlmWrapper {
 public:
 	typedef int (*SortFnc)(const std::string &);
-	typedef std::map<int64_t, std::vector<double>> TlmByTimestamp;
+	typedef std::map<int64_t, std::vector<std::vector<double>>> TlmByTimestamp;
 	typedef logextract::TelemetryDataSource TelemetryDataSource;
 	typedef TelemetryDataSource::DataSetDescVector DataSetDescVector;
 
@@ -225,7 +267,9 @@ public:
 	bool at(TlmByTimestamp::const_iterator it, std::vector<double> &data,
 					int64_t startTs,
 					uint sampleSize, SortFnc sortfnc) const;
-
+	bool at(TlmByTimestamp::const_iterator it,
+		std::vector<double> &data, std::vector<int> &accounting,
+		int64_t startTs, uint sampleSize, SortFnc sortfnc) const;
 private:
 	uint getSampleCount() const;
 	const DataSetDescVector &getDescs() const;

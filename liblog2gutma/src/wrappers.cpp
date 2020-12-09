@@ -222,44 +222,47 @@ std::string HdrWrapper::getValue(const std::string &key) const
 
 EvtWrapper::EvtWrapper(std::vector<EventDataSource *> &events)
 {
-	enum event_kind {
-		EVENT_KIND_AUTOPILOT,
-		EVENT_KIND_ALERT,
-		EVENT_KIND_MEDIA,
-		EVENT_KIND_NOT_PROCESSED,
-	};
+	typedef EvtWrapper::EventTypeEvent::EventKindEnum event_kind;
 
-	const std::map<std::string, enum event_kind> kindAction {
-		{ "AUTOPILOT",	  EVENT_KIND_AUTOPILOT  },
-		{ "COLIBRY",      EVENT_KIND_ALERT      },
-		{ "ESC",          EVENT_KIND_ALERT      },
-		{ "GIMBAL",       EVENT_KIND_ALERT      },
-		{ "PHOTO",	  EVENT_KIND_MEDIA      },
-		{ "RECORD",	  EVENT_KIND_MEDIA      },
-		{ "SMARTBATTERY", EVENT_KIND_ALERT      },
-		{ "STORAGE",      EVENT_KIND_ALERT      },
-		{ "VISION",       EVENT_KIND_ALERT      },
+	const std::map<std::string, event_kind> kindAction {
+		{ "AUTOPILOT",	  event_kind::EVENT_KIND_AUTOPILOT  },
+		{ "COLIBRY",      event_kind::EVENT_KIND_ALERT      },
+		{ "ESC",          event_kind::EVENT_KIND_ALERT      },
+		{ "GIMBAL",       event_kind::EVENT_KIND_ALERT      },
+		{ "PHOTO",	  event_kind::EVENT_KIND_MEDIA      },
+		{ "RECORD",	  event_kind::EVENT_KIND_MEDIA      },
+		{ "SMARTBATTERY", event_kind::EVENT_KIND_ALERT      },
+		{ "STORAGE",      event_kind::EVENT_KIND_ALERT      },
+		{ "VISION",       event_kind::EVENT_KIND_ALERT      },
+		{ "GPS",          event_kind::EVENT_KIND_GPS        },
+		{ "CONTROLLER",   event_kind::EVENT_KIND_CONTROLLER },
 	};
 
 	for (auto event : events) {
 		for (uint i = 0; i < event->getEventCount(); i++) {
-			enum event_kind kind;
+			event_kind kind;
 			Event evt = event->getEvent(i);
 			std::string name = evt.getName();
 
 			auto it = kindAction.find(name);
 			kind = (it != kindAction.end() ? it->second :
-						EVENT_KIND_NOT_PROCESSED);
+					event_kind::EVENT_KIND_NOT_PROCESSED);
 			switch (kind) {
-			case EVENT_KIND_AUTOPILOT :
+			case event_kind::EVENT_KIND_AUTOPILOT :
 				processAlert(evt, name);
-				processEvent(evt);
+				processEvent(evt, kind);
 				break;
-			case EVENT_KIND_ALERT :
+			case event_kind::EVENT_KIND_ALERT :
 				processAlert(evt, name);
 				break;
-			case EVENT_KIND_MEDIA :
+			case event_kind::EVENT_KIND_MEDIA :
 				processMedia(evt, name);
+				break;
+			case event_kind::EVENT_KIND_GPS :
+				processEvent(evt, kind);
+				break;
+			case event_kind::EVENT_KIND_CONTROLLER :
+				processEvent(evt, kind);
 				break;
 			default:
 				break;
@@ -301,6 +304,10 @@ std::string EvtWrapper::EventType::getEventString() const
 		{ EventTypeEnum::EVENT_CAM_CALIB,               "CALIBRATION REQUIRED"        },
 		{ EventTypeEnum::EVENT_PROPELLER_UNSCREWED,     "PROPELLER UNSCREWED"         },
 		{ EventTypeEnum::EVENT_PROPELLER_BROKEN,        "PROPELLER BROKEN"            },
+		{ EventTypeEnum::EVENT_GPS_FIXED,               "GPS FIXED"                   },
+		{ EventTypeEnum::EVENT_GPS_UNFIXED,             "GPS UNFIXED"                 },
+		{ EventTypeEnum::EVENT_CONTROLLER_CONNECTION,   "CONNECTION"                  },
+		{ EventTypeEnum::EVENT_CONTROLLER_DISCONNECTION,"DISCONNECTION"               },
 	};
 
 	auto   it  = eventString.find(mEventType);
@@ -520,10 +527,9 @@ void EvtWrapper::processVisionAlert(const Event &event)
 	}
 }
 
-void EvtWrapper::processEvent(const Event &event)
+void EvtWrapper::processFlyingState(const Event &event)
 {
-	int64_t timestamp;
-
+	EventType::EventTypeEnum event_type = EventType::EventTypeEnum::EVENT_UNKNOWN;
 	const std::map<std::string, EventType::EventTypeEnum> eventType {
 		{ "emergency",	  EventType::EventTypeEnum::EVENT_EMERGENCY  },
 		{ "user_takeoff", EventType::EventTypeEnum::EVENT_TAKEOFF    },
@@ -531,30 +537,108 @@ void EvtWrapper::processEvent(const Event &event)
 		{ "landing",	  EventType::EventTypeEnum::EVENT_LANDING    },
 		{ "landed",	  EventType::EventTypeEnum::EVENT_LANDED     },
 		{ "flying",	  EventType::EventTypeEnum::EVENT_ENROUTE    },
+		{ "hovering",     EventType::EventTypeEnum::EVENT_ENROUTE    },
 	};
 
 	for (auto parameter : event.getParameters()) {
-		EventType::EventTypeEnum event_type;
-
 		if (parameter.name != "flying_state")
 			continue;
 
 		auto it = eventType.find(parameter.value);
 		event_type = (it != eventType.end() ? it->second :
 				EventType::EventTypeEnum::EVENT_NOT_PROCESSED);
+		if (event_type == mCurrentFlyingEvent)
+			event_type = EventType::EventTypeEnum::EVENT_NOT_PROCESSED;
+		else
+			mCurrentFlyingEvent = event_type;
+		break;
+	}
 
-		timestamp = event.getTimestamp();
-		switch (event_type) {
-		case EventType::EventTypeEnum::EVENT_EMERGENCY :
-		case EventType::EventTypeEnum::EVENT_TAKEOFF :
-		case EventType::EventTypeEnum::EVENT_LANDING :
-		case EventType::EventTypeEnum::EVENT_LANDED :
-		case EventType::EventTypeEnum::EVENT_ENROUTE :
-			mEvents[timestamp] = new EventTypeEvent(event_type);
-			break;
-		default:
-			break;
+	if (event_type != EventType::EventTypeEnum::EVENT_NOT_PROCESSED) {
+		int64_t timestamp = event.getTimestamp();
+		mEvents[timestamp] = new EventTypeEvent(event_type);
+	}
+}
+
+void EvtWrapper::processGPSEvent(const Event &event)
+{
+	EventType::EventTypeEnum event_type = EventType::EventTypeEnum::EVENT_UNKNOWN;
+	const std::map<std::string, EventType::EventTypeEnum> eventType {
+		{ "autopilot_fixed",   EventType::EventTypeEnum::EVENT_GPS_FIXED  },
+		{ "autopilot_unfixed", EventType::EventTypeEnum::EVENT_GPS_UNFIXED    },
+	};
+
+	for (auto parameter : event.getParameters()) {
+		if (parameter.name != "event")
+			continue;
+
+		auto it = eventType.find(parameter.value);
+		event_type = (it != eventType.end() ? it->second :
+				EventType::EventTypeEnum::EVENT_NOT_PROCESSED);
+		break;
+	}
+
+	if (event_type != EventType::EventTypeEnum::EVENT_NOT_PROCESSED &&
+			event_type != EventType::EventTypeEnum::EVENT_UNKNOWN) {
+		int64_t timestamp = event.getTimestamp();
+		mEvents[timestamp] = new EventTypeEvent(event_type);
+	}
+}
+
+void EvtWrapper::processControllerEvent(const Event &event)
+{
+	EventType::EventTypeEnum event_type = EventType::EventTypeEnum::EVENT_UNKNOWN;
+	std::string controller_name, controller_type;
+	int64_t timestamp;
+
+	const std::map<std::string, EventType::EventTypeEnum> eventType {
+		{ "connected", EventType::EventTypeEnum::EVENT_CONTROLLER_CONNECTION },
+		{ "disconnected", EventType::EventTypeEnum::EVENT_CONTROLLER_DISCONNECTION },
+	};
+
+	if (event.getName() != "CONTROLLER") {
+		return;
+	}
+
+	timestamp = event.getTimestamp();
+
+	for (auto parameter : event.getParameters()) {
+
+		if (parameter.name == "state") {
+			auto it = eventType.find(parameter.value);
+			event_type = (it != eventType.end() ? it->second :
+				EventType::EventTypeEnum::EVENT_NOT_PROCESSED);
 		}
+
+		if (parameter.name == "name") {
+			controller_name = parameter.value;
+		}
+
+		if (parameter.name == "type") {
+			controller_type = parameter.value;
+		}
+	}
+
+	mEvents[timestamp] = new EventTypeController(event_type, controller_name, controller_type);
+}
+
+void EvtWrapper::processEvent(const Event &event,
+	const EvtWrapper::EventTypeEvent::EventKindEnum kind)
+{
+	typedef EvtWrapper::EventTypeEvent::EventKindEnum event_kind;
+
+	switch (kind) {
+	case event_kind::EVENT_KIND_AUTOPILOT:
+		processFlyingState(event);
+		break;
+	case event_kind::EVENT_KIND_GPS:
+		processGPSEvent(event);
+		break;
+	case event_kind::EVENT_KIND_CONTROLLER:
+		processControllerEvent(event);
+		break;
+	default:
+		return;
 	}
 }
 
@@ -565,10 +649,19 @@ void EvtWrapper::processMedia(const Event &event, std::string info)
 	std::string mediaName;
 
 	for (auto parameter : event.getParameters()) {
+
+		timestamp = event.getTimestamp();
+
+		if (info == "RECORD" && parameter.name == "event" && parameter.value == "stop") {
+			mEvents[timestamp] = new EventTypeMedia(
+				EventType::EventTypeEnum::EVENT_VIDEO, "",
+				parameter.value);
+			continue;
+		}
+
 		if (parameter.name != "path")
 			continue;
 
-		timestamp = event.getTimestamp();
 		pos = parameter.value.rfind('/');
 		if (pos != std::string::npos)
 			mediaName = parameter.value.substr(pos + 1);
@@ -577,7 +670,7 @@ void EvtWrapper::processMedia(const Event &event, std::string info)
 
 		if (info == "RECORD") {
 			mEvents[timestamp] = new EventTypeMedia(
-				EventType::EventTypeEnum::EVENT_VIDEO, mediaName);
+				EventType::EventTypeEnum::EVENT_VIDEO, mediaName, "start");
 		} else if (info == "PHOTO") {
 			mEvents[timestamp] = new EventTypeMedia(
 				EventType::EventTypeEnum::EVENT_PHOTO, mediaName);
@@ -619,8 +712,32 @@ json_object *EvtWrapper::EventTypeMedia::data(int64_t ts)
 	json_object *jevent;
 
 	jevent = baseData(ts);
-	jtmp = json_object_new_string(mPath.c_str());
-	json_object_object_add(jevent, "media_name", jtmp);
+	if (mPath != "") {
+		jtmp = json_object_new_string(mPath.c_str());
+		json_object_object_add(jevent, "media_name", jtmp);
+	}
+	if (mEvent != "") {
+		jtmp = json_object_new_string(mEvent.c_str());
+		json_object_object_add(jevent, "media_event", jtmp);
+	}
+
+	return jevent;
+}
+
+json_object *EvtWrapper::EventTypeController::data(int64_t ts)
+{
+	json_object *jtmp;
+	json_object *jevent;
+
+	jevent = baseData(ts);
+	if (mName != "") {
+		jtmp = json_object_new_string(mName.c_str());
+		json_object_object_add(jevent, "controller_name", jtmp);
+	}
+	if (mType != "") {
+		jtmp = json_object_new_string(mType.c_str());
+		json_object_object_add(jevent, "controller_type", jtmp);
+	}
 
 	return jevent;
 }
@@ -653,8 +770,12 @@ void TlmWrapper::print() const
 
 	for(auto it = mData.begin(); it != mData.end(); it++) {
 		std::cout << it->first << " ";
-		for (double value : it->second)
-			std::cout << value << " ";
+		for (auto value : it->second) {
+			std::cout << "[";
+			for (auto v : value)
+				std::cout << v << " ";
+			std::cout << "]";
+		}
 		std::cout << std::endl;
 	}
 }
@@ -678,14 +799,17 @@ void TlmWrapper::process()
 		mDescs.push_back(desc);
 
 		for (uint i = 0; i < sampleCount; i++) {
+			std::vector<double> v;
 			for (uint j = 0; j < itemCount; j++) {
 				s = data->getSample(i, j);
-				mData[s.timestamp].push_back(s.value);
+				v.push_back(s.value);
 			}
+			mData[s.timestamp].push_back(v);
 		}
 	}
 }
 
+/* Build an TlmWrapper from a vector of TlmWrapper */
 void TlmWrapper::merge(std::vector<TlmWrapper> &tlm)
 {
 	uint hf = 0;
@@ -699,7 +823,9 @@ void TlmWrapper::merge(std::vector<TlmWrapper> &tlm)
 	timestamps.resize(2 * tlm.size());
 
 	sampleCount = 0;
+
 	for (uint i = 0; i < tlm.size(); i++) {
+		/* Highest frequency tlm source has the highest sampleCount */
 		if (tlm[i].getSampleCount() > sampleCount) {
 			sampleCount = tlm[i].getSampleCount();
 			hf = i;
@@ -734,15 +860,25 @@ void TlmWrapper::merge(std::vector<TlmWrapper> &tlm)
 bool TlmWrapper::isNeeded(TelemetryDataSource::DataSetDesc desc) const
 {
 	const std::map<std::string, bool> neededTlm {
-		{ USER_TELEMETRY_GPSWGS84_ALTITUDE, true },
-		{ SMARTBATTERY_FULL_CHARGE_CAP,     true },
-		{ SPEED_HORIZ_X,                    true },
-		{ SPEED_HORIZ_Y,                    true },
-		{ USER_TELEMETRY_GPS_LATITUDE,      true },
-		{ USER_TELEMETRY_GPS_LONGITUDE,     true },
-		{ SMARTBATTERY_REMAINING_CAP,       true },
-		{ SMARTBATTERY_CURRENT_NOW,	    true },
-		{ SMARTBATTERY_VOLTAGE_NOW,	    true },
+		{ USER_TELEMETRY_GPSWGS84_ALTITUDE,      true },
+		{ SMARTBATTERY_FULL_CHARGE_CAP,          true },
+		{ SPEED_HORIZ_X,                         true },
+		{ SPEED_HORIZ_Y,                         true },
+		{ USER_TELEMETRY_GPS_LATITUDE,           true },
+		{ USER_TELEMETRY_GPS_LONGITUDE,          true },
+		{ SMARTBATTERY_REMAINING_CAP,            true },
+		{ SMARTBATTERY_CURRENT_NOW,              true },
+		{ SMARTBATTERY_VOLTAGE_NOW,              true },
+		{ SPEED_HORIZ_Z,                         true },
+		{ WIFI_SIGNAL_0,                         true },
+		{ WIFI_SIGNAL_1,                         true },
+		{ USER_TELEMETRY_GPS_LATITUDE_ACCURACY,  true },
+		{ USER_TELEMETRY_GPS_LONGITUDE_ACCURACY, true },
+		{ GNSS_SV_NUM,                           true },
+		{ USER_TELEMETRY_ANGLES_PHI,             true },
+		{ USER_TELEMETRY_ANGLES_PSI,             true },
+		{ USER_TELEMETRY_ANGLES_THETA,           true },
+		{ SMARTBATTERY_CELL_VOLTAGE_NOW,         true },
 	};
 
 	auto   it  = neededTlm.find(desc.getName());
@@ -805,18 +941,58 @@ bool TlmWrapper::at(TlmByTimestamp::const_iterator it,
 	}
 
 	data.resize(sampleSize, 0);
+
 	data[0] = (double) (it->first - startTs);
 	for (uint i = 0; i < mDescs.size(); i++) {
-		idx = sortfnc(mDescs[i].getName());
-		if (idx < 0)
-			continue;
+		for (uint j = 0; j < mDescs[i].getItemCount(); j++) {
+			std::string desc_name = mDescs[i].getName();
+			if (mDescs[i].isArray())
+				desc_name += "_" + std::to_string(j);
 
-		data[idx] = it->second[i];
-		count++;
+			idx = sortfnc(desc_name);
+			if (idx < 0)
+				continue;
+			data[idx] = it->second[i][j];
+			count++;
+		}
 	}
 
 	if (count != sampleSize)
 		ret = false;
+
+out:
+	return ret;
+}
+
+bool TlmWrapper::at(TlmByTimestamp::const_iterator it,
+	std::vector<double> &data, std::vector<int> &accounting,
+	int64_t startTs, uint sampleSize, SortFnc sortfnc) const
+{
+	int idx;
+	bool ret = true;
+
+	if (it == mData.end()) {
+		ret = false;
+		goto out;
+	}
+
+	data.resize(sampleSize, 0);
+	accounting.resize(sampleSize, 0);
+
+	data[0] = (double) (it->first - startTs);
+	for (uint i = 0; i < mDescs.size(); i++) {
+		for (uint j = 0; j < mDescs[i].getItemCount(); j++) {
+			std::string desc_name = mDescs[i].getName();
+			if (mDescs[i].isArray())
+				desc_name += "_" + std::to_string(j);
+
+			idx = sortfnc(desc_name);
+			if (idx < 0)
+				continue;
+			data[idx] = it->second[i][j];
+			accounting[idx]++;
+		}
+	}
 
 out:
 	return ret;
