@@ -27,6 +27,10 @@
 #ifndef FILEREADER_HPP
 #define FILEREADER_HPP
 
+#include <iostream>
+#include <fstream>
+#include <vector>
+
 namespace logextract {
 
 // Forward declarations

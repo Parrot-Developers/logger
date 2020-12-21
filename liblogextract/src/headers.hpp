@@ -33,7 +33,6 @@
 #include <fstream>
 #include <futils/timetools.h>
 #include <inttypes.h>
-#include <iostream>
 #include <loggerd-format.h>
 #include <map>
 #include <sstream>

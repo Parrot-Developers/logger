@@ -36,6 +36,7 @@ TelemetryDataSource::TelemetryDataSource(const std::string &name)
 	mValueCount = 0;
 	mSampleSize = 0;
 	mSampleCount = 0;
+	mSampleRate = 0;
 }
 
 /**
@@ -72,8 +73,8 @@ void TelemetryDataSource::setDataSetDescs(const std::vector<DataSetDesc> &descs)
 	};
 
 	// Add special data sets for timestamp and seqnum
-	addDataSet(DataSetDesc("time_us", 1));
-	addDataSet(DataSetDesc("seqnum", 1));
+	addDataSet(DataSetDesc("time_us", 1, sizeof(double), 10));
+	addDataSet(DataSetDesc("seqnum", 1, sizeof(double), 10));
 	for (const DataSetDesc &desc : descs)
 		addDataSet(desc);
 	mValueCount = valueCount;

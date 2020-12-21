@@ -27,6 +27,8 @@
 #ifndef TELEMETRY_DATASOURCE_HPP
 #define TELEMETRY_DATASOURCE_HPP
 
+#include <sstream>
+
 namespace logextract {
 
 /**
@@ -37,10 +39,20 @@ public:
 	// Description of a data set
 	class DataSetDesc {
 	public:
-		inline DataSetDesc() : mItemCount(0) {}
+		inline DataSetDesc()
+		{
+			mSize = 0;
+			mType = 10; // TLM_TYPE_FLOAT64
+			mItemCount = 0;
+		}
 
-		inline DataSetDesc(const std::string &name, uint itemCount)
-			: mName(name), mItemCount(itemCount) {}
+		inline DataSetDesc(const std::string &name, uint itemCount, uint size, uint type)
+		{
+			mName = name;
+			mItemCount = itemCount;
+			mSize = size;
+			mType = type;
+		}
 
 		inline const std::string &getName() const
 		{ return mName; }
@@ -48,12 +60,20 @@ public:
 		inline uint getItemCount() const
 		{ return mItemCount; }
 
+		inline uint getSize() const
+		{ return mSize; }
+
+		inline uint getType() const
+		{ return mType; }
+
 		inline bool isArray() const
 		{ return mItemCount > 1; }
 
 	private:
+		uint mSize;
+		uint mType;
+		uint mItemCount; // 1 for single value, > 1 for array
 		std::string mName;
-		uint        mItemCount;  // 1 for single value, > 1 for array
 	};
 
 	typedef std::vector<DataSetDesc> DataSetDescVector;
@@ -105,6 +125,16 @@ public:
 	virtual ~TelemetryDataSource();
 
 	void setDataSetDescs(const std::vector<DataSetDesc> &descs);
+
+	void setSampleRate(uint sampleRate)
+	{ mSampleRate = sampleRate; }
+
+	uint getSampleRate() const
+	{ return mSampleRate; }
+
+	uint getSampleSize() const
+	{ return mSampleSize; }
+
 	void addSample(int64_t timestamp, uint32_t seqNum,
 		       const std::vector<double> &values);
 
@@ -139,6 +169,7 @@ private:
 	uint                 mValueCount;
 	uint                 mSampleSize;
 	uint                 mSampleCount;
+	uint		     mSampleRate;
 	std::vector<int64_t> mTimestamps;
 };
 

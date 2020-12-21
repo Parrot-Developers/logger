@@ -540,7 +540,7 @@ bool TelemetrySource::setupHeader()
 	uint off = 0;
 	uint valueCount = 0;
 	for (const VarDesc &varDesc : mVarDescVector) {
-		descs.push_back(DataSetDesc(varDesc.name, varDesc.count));
+		descs.push_back(DataSetDesc(varDesc.name, varDesc.count, varDesc.size, varDesc.type));
 		off += varDesc.size * varDesc.count;
 		valueCount += varDesc.count;
 	}
@@ -553,6 +553,7 @@ bool TelemetrySource::setupHeader()
 		return false;
 	}
 
+	mDataSource->setSampleRate(mShdHeader.sampleRate);
 	mDataSource->setDataSetDescs(descs);
 	mDataValues.reserve(valueCount);
 	return true;
