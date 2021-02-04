@@ -42,18 +42,23 @@ void EventDataSource::addEvent(const Event &event)
 bool EventDataSource::Event::fromString(const std::string &log, Event &event,
                                                         int64_t timestamp)
 {
+	uint8_t evt_string_len = 4;
 	if (strncmp(log.c_str(), "EVT:", 4) != 0 &&
 			strncmp(log.c_str(), "EVTS:", 5) != 0) {
 		return false;
 	}
 
+	if (strncmp(log.c_str(), "EVTS:", 5) == 0)
+		evt_string_len = 5;
+
 	// Split message
-	std::string msg = std::string(log.c_str() + 4, log.size() - 4);
+	std::string msg = std::string(log.c_str() + evt_string_len,
+			log.size() - evt_string_len);
 	std::vector<std::string> fields = split(msg, ";");
 	if (fields.size() < 1)
 		return false;
 
-	// Extract name and paremeters
+	// Extract name and parameters
 	std::string name = fields[0];
 	ParamVector params;
 	for (uint i = 1; i < fields.size(); i++) {
