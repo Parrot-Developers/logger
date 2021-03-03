@@ -30,7 +30,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
-#include <assert.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <fcntl.h>
@@ -422,7 +421,11 @@ bool FileLogSource::beginDumpFile(loggerd::LogData &data,
 		uint32_t id)
 {
 	bool ok = true;
-	assert(mCurrentFileCtx.fd == -1);
+
+	if (mCurrentFileCtx.fd >= 0) {
+		ULOGW("file descriptor already open");
+		return true;
+	}
 
 	ULOGI("Dumping file '%s'", filePath.c_str());
 
@@ -467,12 +470,15 @@ bool FileLogSource::continueDumpFile(loggerd::LogData &data)
 {
 	bool ok = true;
 
-	assert(mCurrentFileCtx.fd != -1);
+	if (mCurrentFileCtx.fd < 0)
+		return false;
 
 	/* If all data was written, finish file instead */
 	if (mCurrentFileCtx.off == mCurrentFileCtx.size)
 		return finishDumpFile(data);
-	assert(mCurrentFileCtx.off < mCurrentFileCtx.size);
+
+	if (mCurrentFileCtx.off >= mCurrentFileCtx.size)
+		return false;
 
 	/* Chunk header */
 	ok = ok && data.push((uint8_t)FILE_TAG_CHUNK);
@@ -485,7 +491,9 @@ bool FileLogSource::continueDumpFile(loggerd::LogData &data)
 	if (count > data.remaining() - sizeof(uint32_t))
 		count = data.remaining() - sizeof(uint32_t);
 	ok = ok && data.push(count);
-	assert(ok);
+
+	if (!ok)
+		return false;
 
 	/* Read from file into buffer, failure is not fatal */
 	ssize_t readlen = read(mCurrentFileCtx.fd, data.current(), count);
@@ -512,7 +520,9 @@ bool FileLogSource::continueDumpFile(loggerd::LogData &data)
 bool FileLogSource::finishDumpFile(loggerd::LogData &data)
 {
 	bool ok = true;
-	assert(mCurrentFileCtx.off == mCurrentFileCtx.size);
+	if (mCurrentFileCtx.off != mCurrentFileCtx.size)
+		return false;
+
 	ok = ok && data.push((uint8_t)FILE_TAG_STATUS);
 	ok = ok && data.push(mCurrentFileCtx.id);
 	ok = ok && data.push((uint8_t)mCurrentFileCtx.status);

@@ -31,7 +31,6 @@
 #include <string.h>
 #include <errno.h>
 #include <dirent.h>
-#include <assert.h>
 
 #include <algorithm>
 #include <map>
@@ -176,7 +175,8 @@ size_t TlmLogSource::readData(loggerd::LogData &data)
 		ok = ok && data.push(mShdHeader.sample_rate);
 		ok = ok && data.push(mShdHeader.metadata_size);
 		ok = ok && data.pushBuffer(mMetadata, mShdHeader.metadata_size);
-		assert(ok);
+		if (!ok)
+			goto out;
 
 		/* Update lengths */
 		writelen = data.used();
@@ -237,7 +237,8 @@ size_t TlmLogSource::readData(loggerd::LogData &data)
 		ok = ok && data.push(tv_nsec);
 		ok = ok && data.push(seqnum);
 		ok = ok && data.skip(mShdHeader.sample_size);
-		assert(ok);
+		if (!ok)
+			goto out;
 
 		/* Update lengths */
 		writelen = data.used();
@@ -410,7 +411,8 @@ void TlmPlugin::onTimer()
 	auto it = mLogSourceMap.begin();
 	while (it != mLogSourceMap.end()) {
 		TlmLogSource *logSource = it->second;
-		assert(logSource != nullptr);
+		if (logSource == nullptr)
+			return;
 
 		/* Check if still valid */
 		auto match = [&](const std::string &s) -> bool {

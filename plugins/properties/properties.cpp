@@ -30,7 +30,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
-#include <assert.h>
 
 #include <deque>
 #include <string>
@@ -177,7 +176,6 @@ PropLogSource::PropLogSource(PropPlugin *plugin, struct pomp_loop *loop)
 PropLogSource::~PropLogSource()
 {
 	stop();
-	assert(mPropMon == nullptr);
 }
 
 size_t PropLogSource::readData(loggerd::LogData &data)
@@ -218,7 +216,8 @@ void PropLogSource::start()
 
 	/* Create monitor, attach to loop */
 	mPropMon = propmon_new();
-	assert(mPropMon != nullptr);
+	if (mPropMon == nullptr)
+		return;
 	res = pomp_loop_add(mLoop, propmon_get_fd(mPropMon), POMP_FD_EVENT_IN,
 			&PropLogSource::fdCb, this);
 	if (res < 0)

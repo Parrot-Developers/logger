@@ -30,7 +30,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
-#include <assert.h>
 
 #include <deque>
 #include <set>
@@ -184,7 +183,6 @@ ShsLogSource::ShsLogSource(ShsPlugin *plugin, struct pomp_loop *loop)
 ShsLogSource::~ShsLogSource()
 {
 	stop();
-	assert(mShsCtx == nullptr);
 }
 
 size_t ShsLogSource::readData(loggerd::LogData &data)
@@ -248,7 +246,9 @@ void ShsLogSource::start()
 
 	/* Create context, attach to loop */
 	mShsCtx = shs_ctx_new_client(&ShsLogSource::shsCb, this);
-	assert(mShsCtx != nullptr);
+	if (mShsCtx == nullptr)
+		return;
+
 	res = shs_ctx_pomp_loop_register(mShsCtx, mLoop);
 	if (res < 0)
 		ULOG_ERRNO("shs_ctx_pomp_loop_register", -res);
