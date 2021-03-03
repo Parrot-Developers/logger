@@ -27,7 +27,6 @@
 #ifndef LOGEXTRACT_HPP
 #define LOGEXTRACT_HPP
 
-#include <cassert>
 #include <fstream>
 #include <map>
 #include <sstream>

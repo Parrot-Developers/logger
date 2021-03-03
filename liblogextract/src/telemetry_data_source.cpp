@@ -53,8 +53,8 @@ TelemetryDataSource::~TelemetryDataSource()
  */
 void TelemetryDataSource::setDataSetDescs(const std::vector<DataSetDesc> &descs)
 {
-	assert(mDataSetDescs.empty());
-	assert(mDataSets.empty());
+	if (!mDataSetDescs.empty() || !mDataSets.empty())
+		return;
 
 	uint offset = 0;
 	uint valueCount = 0;
@@ -93,7 +93,8 @@ void TelemetryDataSource::addSample(int64_t timestamp, uint32_t seqNum,
 	}
 
 	// Write timestamp, seqnum and data
-	assert((uint)values.size() + 2 == mValueCount);
+	if ((uint)values.size() + 2 != mValueCount)
+		return;
 	double _timestamp = timestamp;
 	double _seqNum = seqNum;
 
@@ -113,9 +114,11 @@ void TelemetryDataSource::addSample(int64_t timestamp, uint32_t seqNum,
 TelemetryDataSource::DataSample TelemetryDataSource::DataSet::getSample(
 					uint sampleIdx, uint itemIdx) const
 {
-	assert(sampleIdx < getSampleCount());
+	if (sampleIdx >= getSampleCount())
+		return DataSample();
+
 	int64_t timestamp = mSource->mTimestamps[sampleIdx];
-	int64_t off = sampleIdx * mSource->mSampleSize + mOffset
+	int64_t off = (int64_t)sampleIdx * mSource->mSampleSize + mOffset
 		      + itemIdx * sizeof(double);
 
 	if (itemIdx >= getItemCount())

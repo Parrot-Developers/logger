@@ -27,7 +27,6 @@
 #ifndef LIBLOGEXTRACT_HEADERS_HPP
 #define LIBLOGEXTRACT_HEADERS_HPP
 
-#include <cassert>
 #include <cstring>
 #include <errno.h>
 #include <fstream>

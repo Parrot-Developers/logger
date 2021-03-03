@@ -283,8 +283,8 @@ private:
 	inline double convertToDouble(const void *buf, size_t len)
 	{
 		T val = 0;
-		assert(len == sizeof(T));
-		memcpy(&val, buf, len);
+		if (len == sizeof(T))
+			memcpy(&val, buf, len);
 		return (double)val;
 	}
 
@@ -673,7 +673,8 @@ void TelemetrySource::addSample(int64_t timestamp, uint32_t seqNum,
 			off += varDesc.size;
 		}
 	}
-	assert(off <= mShdHeader.sampleSize);
+	if (off > mShdHeader.sampleSize)
+		return;
 	mDataSource->addSample(timestamp, seqNum, mDataValues);
 }
 
@@ -757,7 +758,8 @@ void UlogSource::fillLogEntry(const struct ulog_entry *ulogEntry,
 		logEntry.msgBin = (const uint8_t *)ulogEntry->message;
 		logEntry.msgLen = ulogEntry->len;
 	} else {
-		assert(ulogEntry->len > 0);
+		if (ulogEntry->len <= 0)
+			return;
 		logEntry.msgTxt = ulogEntry->message;
 		logEntry.msgLen = ulogEntry->len - 1;
 	}
@@ -789,7 +791,11 @@ bool File::loadInfo(DataReader &reader)
 
 bool File::load(DataReader &reader)
 {
-	assert(mLz4Ctx == nullptr);
+	if (mLz4Ctx != nullptr) {
+		ULOGE("lz4 decompression context already instantiated");
+		return false;
+	}
+
 	LZ4F_errorCode_t lz4Err = LZ4F_createDecompressionContext(
 						&mLz4Ctx, LZ4F_VERSION);
 	if (LZ4F_isError(lz4Err)) {
@@ -846,7 +852,7 @@ bool File::readEntries(DataReader &reader)
 			    mInternalHeaderSource != nullptr &&
 			    mInternalHeaderSource->isHeaderFound()) {
 			break;
-                }
+		}
 
 		// Entry header
 		CHECK(reader.read(entryId));
