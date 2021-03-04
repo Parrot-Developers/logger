@@ -61,8 +61,10 @@ enum convert_status convert(const std::string &in_file,
 			hdr = static_cast<InternalDataSource *>(source);
 		} else if (source->isTelemetry()) {
 			auto tlm = static_cast<TelemetryDataSource *>(source);
-			tlms.push_back(log2gutma_wrapper::TlmWrapper(tlm));
-			tlms.back().process();
+			if (tlm->getSampleCount() > 0) {
+				tlms.push_back(log2gutma_wrapper::TlmWrapper(tlm));
+				tlms.back().process();
+			}
 		} else if (source->isEvent()) {
 			evts.push_back(static_cast<EventDataSource *>(source));
 		}

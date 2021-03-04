@@ -403,12 +403,17 @@ json_object *LoggingSection::data()
 		startTs = evt_startTs;
 
 	jitems = json_object_new_array();
+	jkeys = json_object_new_array();
+
 	/* Add telemetry data. */
 	for (auto it = mTlm.begin(); it != mTlm.end(); it++) {
 		char ds[128] = "";
 
 		if (!mTlm.at(it, value, accounting, startTs, tlmVarIndex.size() + 1, sortField))
 			break;
+
+		if (accounting.size() == 0)
+			continue;
 
 		jtmp = json_object_new_array();
 		/* value[0] contains timestamp for current sample. */
@@ -438,25 +443,26 @@ json_object *LoggingSection::data()
 		json_object_array_add(jitems, jtmp);
 	}
 
-	/* Then add telemetry key. */
-	jkeys = json_object_new_array();
-	jtmp = json_object_new_string("timestamp");
-	json_object_array_add(jkeys, jtmp);
-
-	for (auto& x: jsonVarOrder) {
-		int idx;
-		if (jsonColumnName.count(x) == 0)
-			continue;
-
-		/* Ignore empty tlm sections */
-		if (tlmVarIndex.count(x) == 0)
-			continue;
-		idx = tlmVarIndex.at(x);
-		if (accounting[idx] == 0)
-			continue;
-
-		jtmp = json_object_new_string(jsonColumnName.at(x).c_str());
+	if (accounting.size() > 0) {
+		/* Then add telemetry key. */
+		jtmp = json_object_new_string("timestamp");
 		json_object_array_add(jkeys, jtmp);
+
+		for (auto& x: jsonVarOrder) {
+			if (jsonColumnName.count(x) == 0)
+				continue;
+
+			if (tlmVarCompute.count(x) > 0) {
+				if (!tlmVarCompute.at(x)(value, accounting))
+					continue;
+			} else {
+				/* Ignore unwanted tlm sections */
+				if (tlmVarIndex.count(x) == 0)
+					continue;
+			}
+			jtmp = json_object_new_string(jsonColumnName.at(x).c_str());
+			json_object_array_add(jkeys, jtmp);
+		}
 	}
 
 	jevents = json_object_new_array();
@@ -484,9 +490,13 @@ json_object *LoggingSection::data()
 	jval = json_object_new_string(mHdr.startDateTime(startTs).c_str());
 	json_object_object_add(jtmp, "logging_start_dtg", jval);
 	json_object_object_add(jtmp, "events", jevents);
-	json_object_object_add(jtmp, "flight_logging_keys", jkeys);
-	json_object_object_add(jtmp, "flight_logging_items", jitems);
-
+	if (accounting.size() > 0) {
+		json_object_object_add(jtmp, "flight_logging_keys", jkeys);
+		json_object_object_add(jtmp, "flight_logging_items", jitems);
+	} else {
+		json_object_put(jkeys);
+		json_object_put(jitems);
+	}
 	return jtmp;
 }
 
